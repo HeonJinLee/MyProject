@@ -13,9 +13,9 @@ BOOL WINAPI WriteFile(
 dbg = pydbg()
 isProcess = False
 
-orgPattern = 'love'
-repPattern = 'hate'
-processName = 'notepad.exe'		#32비트 메모장 사
+orgPattern = 'Python'
+repPattern = 'Difficult'
+processName = 'notepad.exe'		#32비트 메모장 
 
 def replaceString(dbg, args):		#콜백 함수 선언
 	buffer = dbg.read_process_memory(args[1],args[2])	#메모리 값 읽기
