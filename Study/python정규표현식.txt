@@ -1,0 +1,121 @@
+﻿1.파이썬 정규식
+
+1) .(하나의 문자)
+>>> bool(re.search('bana.a','banana'))
+True
+
+2) ^(문자열의 시작)
+>>> bool(re.search('^app','apple and banana'))
+True
+>>> bool(re.search('^app','banana and apple'))
+False
+
+3) $(문자열의 종료)
+>>> bool(re.search('dy$','I ate study'))
+True
+
+4) [](문자열의 집합)
+>>> bool(re.search('appl[a-z]','applz'))
+True
+>>> bool(re.search('appl[a-z]','appl1'))
+False
+>>> bool(re.search('appl[a-z|0-9]','appl1'))
+True
+
+5) []안에서 ^가 쓰인 경우(제외한 경우를 나타냄, 밖에서 쓰였을 경우 문자열의 처음을 나타냄)
+<a,b,c이외의 문자가 붙은 경우>
+>>> bool(re.search('appl[^abc],','appla'))
+False
+>>> bool(re.search('appl[^abc],','apple'))
+True
+
+6) *(문자가 0회 이상 반복됨)
+<p가 0회 이상 반복, p가 없는 경우에도 성립>
+>>> bool(re.search('ap*le','ale'))
+True
+>>> bool(re.search('ap*le','apppppple'))
+True
+
+7) +(문자가 1회 이상 반복, *와의 차이는 문자가 없으면 False)
+>>> bool(re.search('ap+le','ale'))
+False
+
+8) ?(문자가 0회 또는 1회 반복)
+>>> bool(re.search('ap?le','ale'))
+True
+>>> bool(re.search('ap?le','apple'))
+False
+
+9) {n}(문자가 n회 반복)
+>>> bool(re.search('ap{2}le','aple'))
+False
+>>> bool(re.search('ap{2}le','apple'))
+True
+>>> bool(re.search('ap{2}le','appple'))
+False
+
+10) {n,m}(문자가 n회 부터 m회 까지 반복)
+
+11) {n,}(문자가 n회부터 무한반복)
+>>> bool(re.search('ap{0,}le','ale'))
+True
+>>> bool(re.search('ap{0,}le','appppppppppple'))
+True
+
+
+
+2. 정규표현식의 개행문자들
+
+<\a를 표현 하기 위해서>
+ - '\\a'
+ - r'\a'
+
+
+1) r'\w' == [a-zA-Z0-9_] 
+>>> a='math and english'
+>>> bool(re.search(r'an\w',a))
+True
+
+2) \\ == [^a-zA-Z0-9_]
+
+3) \d == [0-9]
+
+
+===============================================================
+
+* re.findall
+>>> a='2017years 05month 14days'
+>>> re.findall(r'\d',a)
+['2','0','1','7','0','5','1','4']
+
+>>> a='2017years 05month 14days'
+>>> re.findall(r'[^\d]+',a)
+['years','month','days']
+
+================================================================
+
+4) \D == [^0-9]
+>>> re.findall(r'\D+',a)
+['years','month','days']
+
+5) \s == 공백문자
+>>> re.findall(r'[^\s]+',a)
+['2017years','05month','14days']
+
+6) \S == 공백아닌문자
+>>> re.findall(r'\S+',a)
+
+
+=================================================================
+
+a="math english korean french"
+>>> re.split(r'[:,\s]+',a)
+['apple' , 'orange', 'oran', 'banana', 'king']
+>>> re.findall(r'[^\s]+',a)
+['apple' , 'orange' , ',' , 'oran' , 'banana' , ':' , 'king']
+
+
+
+
+
+
