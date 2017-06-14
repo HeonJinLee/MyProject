@@ -11,7 +11,7 @@ try:
 		i+=1
 		pir_SR501_input=GPIO.input(pir_pin)
 		print("light_input=%d i=%d"%(pir_SR501_input,i))
-		if(pir_SR501_input==0):
+		if(pir_SR501_input==0):		# 모션을 감지할 시
 			print("someone come in %s" % time.strftime("%H:%M:%S,%Y.%m.%d"))
 			time.sleep(1)
 except KeyboardInterrupt:
