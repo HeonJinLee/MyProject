@@ -1,5 +1,29 @@
-﻿#소음측정
+#적외선 감지 센서
+import RPi.GPIO as GPIO
+import time
+GPIO.setmode(GPIO.BCM)
+pir_pin=21
+print ("PIR_SR501 motion sensor test")
+GPIO.setup(pir_pin,GPIO.IN)
+try:
+	i=0
+	while(True):
+		i+=1
+		pir_SR501_input=GPIO.input(pir_pin)
+		print("light_input=%d i=%d"%(pir_SR501_input,i))
+		if(pir_SR501_input==0):
+			print("someone come in %s" % time.strftime("%H:%M:%S,%Y.%m.%d"))
+			time.sleep(1)
+except KeyboardInterrupt:
+	GPIO.cleanup
 
+
+
+
+
+
+
+#소음측정
 #5V, GND, 21
 
 import RPi.GPIO as GPIO
