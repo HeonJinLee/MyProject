@@ -15,7 +15,7 @@ try:
 			print("someone come in %s" % time.strftime("%H:%M:%S,%Y.%m.%d"))
 			time.sleep(1)
 except KeyboardInterrupt:
-	GPIO.cleanup
+	GPIO.cleanup()
 
 
 
