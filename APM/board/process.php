@@ -19,6 +19,12 @@ switch($_GET['mode']){
         echo "Sorry, your file is too large.";
         $uploadOk = 0;
     }
+		
+	$imageFileType = pathinfo($target_file,PATHINFO_EXTENSION);
+if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType !="gif"){
+	echo "Sorry, only JPG, JPEG, PNG , GIF files are allowed.";
+	$uploadOk = 0;
+}
 
     if ($uploadOk == 0) {
        echo "Sorry, your file was not uploaded.";
