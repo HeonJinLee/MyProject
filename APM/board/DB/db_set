@@ -1,0 +1,13 @@
+create table people (
+id varchar(20) not null,
+pw varchar(20) not null,
+name varchar(10) not null,
+token varchar(100),
+primary key (id, pw));
+
+create table board(
+id int not null auto_increment,
+title varchar(100) not null,
+des varchar(1000) not null,
+created datetime,
+primary key(id));
