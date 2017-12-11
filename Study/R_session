@@ -1,0 +1,18 @@
+#Code by Heonjin
+
+setwd("/Users/lhj/study/R") 				
+#경로 불러오기
+log1 <- read.csv("TG.csv", header = F)
+#TG.csv파일 log1로 불러오기
+attach(log1)
+#log1 붙기
+
+f1 <- data.frame(c=factor(sample(rep(log1$V5))))
+#csv에 컬럼 하나하나가 처음부터 V1부터 저장됨. 그래서 V5가 src_ip
+
+t1 <-table(f1$c)
+#테이블에 지정해준 변수
+
+barplot((sort(t1, decreasing = TRUE)[1:5]),beside=T, ylab="session", col=c("lightgreen"), las=1,
+        border="white" , main = "웹 사이트 방문 ip TOP5")
+
