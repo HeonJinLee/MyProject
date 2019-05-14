@@ -1,4 +1,34 @@
-﻿##### XSS로 인한 쿠키 탈취 방지
+##### HTTP 보안 헤더 설정
+1. Content-Security-Policy
+XSS과 연관된 공격의 피해를 최소화 할 수 있으며, 스크립트를 허용할 url(신뢰할 수 있는 url)을 헤더에 설정하는 옵션
+ - Content-Security-Policy : script-src https://test.com
+
+2. X-Frame-Options
+clickjacking(사용자의 클릭을 훔쳐 엉뚱한 곳을 클릭하게 만드는 공격 기법) 방지 기능 포함 사용 방법은 다음과 같이 3가지가 있다.
+ - X-Frame-Options : Deny (모두 표시 거부)
+ - X-Frame-Options : SAMEORIGIN (같은 origin 일 경우에만 허용)
+ - X-Frame-Options : ALLOW FROM http://test.com (지정한 origin에 한하여 허용)
+
+3. X-Content-Type-Options
+jpg 확장자로 js 파일을 올려 우회를 한 후에 script 태그에 src로 넣는 수법을 방지하는 헤더
+이 헤더를 넣으면 MIMETYPE과 다르게 사용하지 못하게 한다. nosciff를 넣어주면 활성화 된다.
+ - X-Content-Type-Options: nosniff
+
+4. (HTTP) Strict-Transport-Security (HSTS)
+해당 해더를 받게 되면 브라우저는 다음에 사이트에 접속할 때 https://를 붙이지 않더라도 웹브라우저가 https로 접속하는 기능이다. 이와 같은 방법으로 SSL http, SSL strip 공격을 피할 수 있게 된다.
+ - Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  => includeSubDomains를 넣어주면 서브 도메인들도 적용이 된다.
+
+5. Cache-control
+악의적인 사용자가 브라우저 히스토리를 악용 할 수 있기 때문에 브라우저가 웹페이지 컨텐츠를 캐싱하지 않도록 설정한다.
+ - Cache-Control: no-cache
+
+6. X-XSS-Protection
+웹 브라우저의 내장 XSS Filter를 사용하도록 하는 옵션
+- X-XSS-Protection; 1; mode=block
+
+
+##### XSS로 인한 쿠키 탈취 방지
 1). httpOnly 설정
 브라우저에서 쿠키에 접근할 수 없도록 제한
 - PHP
@@ -58,3 +88,4 @@ stateless : 상태와 관계없이 규칙을 활성화 할 때
 4). unset : 현재 Flow의 해당 Condition을 unset한다.
 5). isnotset : 해당 Condition이 Set 되어 있지 않을 경우 Alert을 생성한다.
 6). noalert : 이 Rule에 대하여 Alert을 생성하지 않는다. 
+
