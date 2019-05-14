@@ -1,0 +1,30 @@
+##### 웹서버와 rest API 서버의 차이
+- 웹서버
+웹서버와의 통신이 정상적으로 이루어지고 있어야 화면들이 보인다.
+-> 평소에 내가 보고 해킹하는 화면
+
+- rest API 서버
+웹서버와의 통신이 이뤄지지 않고 있어도 rest API를 사용하면 통신은 되지 않아도 화면에 출력은 된다.
+-> 앱에서 많이 사용함 ( 내가 알고 있는 웹서버와 동일하다고 생각하면 되나, 해킹 시 화면은 보이지 않는다고 생각하면 됨 )
+=> 예). GET 방식 : 사용자 정보 가져오기, POST : 사용자 생성, DELETE : 사용자 삭제, PUT : 사용자 수정
+
+
+##### REST API 특징
+1. 슬래시 구분자( / )는 계층 관계를 나타내는데 사용한다.
+Ex) http://restapi.example.com/houses/apartments
+2. URI 마지막 문자로 슬래시( / )를 포함하지 않는다.
+- REST API는 분명한 URI를 만들어 통신을 해야 하기 때문에 혼동을 주지 않도록 URI 경로의 마지막에는 슬래시(/)를 사용하지 않는다.
+Ex) http://restapi.example.com/houses/apartments/ (X)
+3. 하이픈( - )은 URI 가독성을 높이는데 사용
+- 불가피하게 긴 URI경로를 사용하게 된다면 하이픈을 사용해 가독성을 높인다.
+4. 밑줄( _ )은 URI에 사용하지 않는다.
+- 밑줄은 보기 어렵거나 밑줄 때문에 문자가 가려지기도 하므로 가독성을 위해 밑줄은 사용하지 않는다.
+5. URI 경로에는 소문자가 적합하다.
+- URI 경로에 대문자 사용은 피하도록 한다.
+6. 파일확장자는 URI에 포함하지 않는다.
+- REST API에서는 메시지 바디 내용의 포맷을 나타내기 위한 파일 확장자를 URI 안에 포함시키지 않는다.
+- Accept header를 사용한다.
+Ex) http://restapi.example.com/members/soccer/345/photo.jpg (X)
+Ex) GET / members/soccer/345/photo HTTP/1.1 Host: restapi.example.com Accept: image/jpg (O)
+7. 리소스 간에는 연관 관계가 있는 경우
+- /리소스명/리소스 ID/관계가 있는 다른 리소스명

@@ -1,0 +1,60 @@
+﻿##### XSS로 인한 쿠키 탈취 방지
+1). httpOnly 설정
+브라우저에서 쿠키에 접근할 수 없도록 제한
+- PHP
+5.2 이상 버전
+setcookie("쿠키명","쿠키값",0,"/","domain_name",false, true);
+5.2 이하 버전
+header("Set-Cookie: 쿠키명=쿠키값; httpOnly");
+
+2). Secure Cookies 설정
+https를 통해 암호화되어야 할 정보가 개발자의 부주의로 http로 전송이 될 경우 정보가 유출될 수 있음.
+header("Set-Cookie: 쿠키명=쿠키값; path=/; secure");
+
+
+##### SQL Injection 대응 방안 ( prepared statement )
+-> PreparedStatement를 통해 원천 차단 가능
+1). 첫번째
+PreparedStatement test = conn.prepareStatement("select count(*) from member where userid=? and password=?");
+test.setString(1, userid);
+test.setString(2, password);
+ResultSet rs = stmt.executeQuery();
+
+2). 두번째
+$dbc= mysqli_connect(...생략...);
+$query= "SELECT * FROM user_list WHERE id='@0' and pw='@1'";
+$data= array($user_id, $user_pw);
+good_mysqli_query($dbc,$query,$data);
+-> @0과 @1은 각각 $data[0], $data[1]을 의미
+=> 사용자가 데이터를 입력한 후 데이터가 데이터베이스에서 처리가 될 때 까지 모든 과정에서 
+데이터는 쿼리문과 분리되어지기 때문에 데이터에 의해 쿼리문이 변조될 수 없어서 sql injection이 불가능해짐.
+
+
+##### suricata
+- content : 문자열 찾을때 사용
+- nocase : 대/소문자 구별하지 않을때 사용
+- offset : 패킷에서 문자열을 탐색 시작할 위치 지정(0부터 시작)
+- depth : 패킷에서 문자열 탐색을 종료할 위치 지정
+- distance : 이전 content에 매칭된 경우, 패턴 매칭을 시작할 위치를 지정(0부터 시작)
+- within : 이전 content에 매칭된 경우, 패턴 매칭을 끝 낼 상대 위치 지정
+- sid : 시그니처의 ID를 지정
+- rev : 규칙의 버전 번호를 가르킴(SID와 함께 쓰인다)
+- flow
+to_server : 서버에게 전송된 패킷일 때 활성화
+from_server : 서버로부터 전송된 패킷일 때 활성화
+to_client : 클라이언트에게 전송된 패킬일 때 활성화
+from_client : 클라이언트로 전송된 패킷일 때 활성화
+only_stream : 재구성된 패킷 또는 연결이 맺어진 스트림에 속한 패킷일 때 활성화
+established : 연결이 수립된 TCP 연결 또는 세션에 속한 패킷일 때 활성화
+stateless : 상태와 관계없이 규칙을 활성화 할 때
+
+※ suricata rules flowbits
+하나의 Flow에 여러 패킷이 있을 때, suricata는 이 flow들을 memory에 남겨둔다.
+독립 된 패킷 내의 Data가 아니라 특정 Flow 내의 패킷 Data를 검사할 때 사용한다.
+- Action의 종류
+1). set : 현재 Flow의 해당 Condition을 set 한다.
+2). isset : 해당 Condition이 set 되어 있을 경우 Alert을 생성한다.
+3). toggle : 해당 Condition의 상태를 반전한다. set <-> unset
+4). unset : 현재 Flow의 해당 Condition을 unset한다.
+5). isnotset : 해당 Condition이 Set 되어 있지 않을 경우 Alert을 생성한다.
+6). noalert : 이 Rule에 대하여 Alert을 생성하지 않는다. 

