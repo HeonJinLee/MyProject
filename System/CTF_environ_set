@@ -1,0 +1,40 @@
+##### CTF 문제 연습 시 서버가 닫혀있으므로, 다음과 같이 구성 필요
+- xinetd를 이용해 환경 구축
+( root말고 다른 계정으로 구축해야 권한이 없어 접근안되는 문제도 정상적인 풀이가 가능 )
+
+vi /etc/xinetd/[service_name]
+
+service [service_name]
+{
+	disable = no
+	flags = REUSE
+	socket_type = stream
+	protocol = tcp
+	user = 소유자계정
+	wait = no
+	server = 실행할 바이너리 위치
+}
+
+ex).
+service feed_me
+{
+	disable = no
+	flags = REUSE
+	socket_type = stream
+	protocol = tcp
+	user = lhj
+	wait = no
+	server = /home/lhj/feed_me
+}
+
+- services 설정
+vi /etc/services
+-> /etc/services 제일 끝에 예제와 같이 추가
+
+ex). 
+feed_me     31337/tcp         # CSA CTF 2019
+
+- xinetd 재시작
+service xinetd restart
+nc localhost 31337
+
