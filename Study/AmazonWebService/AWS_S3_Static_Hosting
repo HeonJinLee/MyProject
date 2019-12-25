@@ -1,0 +1,65 @@
+##### AWS S3에서 정적 웹 호스팅 하는 방법
+1) 버킷 생성 및 퍼블릭 액세스 차단 권한을 상단 두개만 체크
+2) 버킷 정책에서 Effect: Allow, Principal: *, Action: s3:GetObject, Resource /* 로 설정
+3) 버킷 > 속성 > 정적 웹 사이트 호스팅 > '이 버킷을 사용하여 웹 사이트를 호스팅합니다.' 클릭 > 인덱스 문서와 오류 문서 지정 > 저장
+
+※ 버킷 referer로 원하는 도메인에서만 확인하도록 설정
+1) heonjin 버킷 정책
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1570000000000",
+    "Statement": [
+        {
+            "Sid": "Stmt1570000000000",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::heonjin/*"
+        }
+    ]
+}
+
+2) heonjin-test 버킷 정책
+{
+    "Version": "2012-10-17",
+    "Id": "Policy15700000000000",
+    "Statement": [
+        {
+            "Sid": "Stmt1570000000000",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::heonjin-test/*",
+            "Condition": {
+                "StringLike": {
+                    "aws:Referer": "http://heonjin.s3-website.ap-northeast-2.amazonaws.com/*"
+                }
+            }
+        }
+    ]
+}
+1) Effect : 지정한 도메인만 허용할 것이므로 Allow
+2) Principal : 정책을 적용할 대상(인터넷 전체에 공개로 *)
+3) Action : 파일을 보여주는(다운로드) 상황이므로 s3:GetObject
+4) Condition : 조건절
+- StringLike : 조건절 안에 사용하는 조건문(뜻은 문자열을 포함하고 있을 때)
+- aws:Referer : Referer값을 지정. 보통 도메인을 설정하며 맨 뒤에 /*를 붙여주어, 도메인 이하 모든 경로에 대해 허용
+(/hello.html 처럼 특정 파일을 지정 가능하며 여러개는 ,(콤마)로 구분)
+
+3) 호스팅 서버에 업로드 파일 명
+<html>
+<head>
+<title>test web hosting</title>
+</head>
+<body>
+<p>hello world!</p>
+<img src="https://heonjin-test.s3.ap-northeast-2.amazonaws.com/up_test.jpg" width="320" height="240">
+</body>
+</html>
+
+4) 속성 > 정적 웹 사이트 호스팅에서 확인되는 경로로 접근을 시도하면 정상적으로 접속하는 것을 확인 가능
+(처음에 a.html 객체를 눌러서 확인해보려고 하니 제대로 확인이 되지 않았었음 - 우리는 파일 업로드 버킷에 버킷 속성에 있는 설정으로 referer 설정을 했었음)
+http://heonjin.s3-website.ap-northeast-2.amazonaws.com/a.html
+
+5) 결론 : 이미지 파일 저장 Bucket에 특정 도메인만 접근할 수 있도록 제한하려면?
+-> AWS Policy Generator를 사용해 HTTP-Referer 접근 제한자를 설정하면 됨
