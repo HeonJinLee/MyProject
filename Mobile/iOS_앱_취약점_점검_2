@@ -1,0 +1,327 @@
+15) cycript로 실행 중인 프로세스에 attach해서 property를 변경하고 함수를 동적으로 호출 가능 (동적 분석)
+- 실행중인 프로세스에 연결하여 사용중인 모든 클래스의 이름 (예 : 뷰 컨트롤러, 사용중인 내부 및 타사 라이브러리, 심지어 응용 프로그램 대리인의 이름)을 찾을 수 있습니다.
+- 특정 클래스 (예 : View Controller, App 대리자 또는 기타 클래스)의 경우 사용중인 모든 메서드의 이름을 찾을 수도 있습니다.
+- 또한 응용 프로그램을 실행하는 동안 특정 시간에 모든 인스턴스 변수의 이름과 해당 값을 찾을 수 있습니다.
+- 런타임 중에 인스턴스 변수의 값을 수정할 수 있습니다.
+- Method Swizzling을 수행 할 수 있습니다. 즉, 특정 메소드의 코드를 다른 구현으로 바꿉니다.
+- 응용 프로그램의 실제 코드에 있지 않아도 런타임 동안 응용 프로그램의 모든 메서드를 호출 할 수 있습니다.
+
+heonjin-iPhone:/var/mobile/Applications/67D95CAC-test-4BA5-8025-000000000000/test.app root# ps -ef | grep test
+  501  1556     1   0   0:00.00 ??         0:02.33 /var/mobile/Applications/67D95CAC-test-4BA5-8025-000000000000/test.app/test
+heonjin-iPhone:/var/mobile/Applications/67D95CAC-test-4BA5-8025-000000000000/test.app root# cycript -p 1556
+cy# UIApp
+#"<UIApplication: 0x17d80150>"
+cy# UIApp.delegate
+\#"<TestAppDelegate: 0x17d9bb90>"
+
+- 앱의 현재 뷰 컨트롤러를 확인하기 위해, keyWindow 속성을 찾아야 함
+cy# UIApp.windows
+@[#"<UIWindow: 0x17dd45a0; frame = (0 0; 320 480); opaque = NO; autoresize = RM+BM; gestureRecognizers = <NSArray: 0x17dd4be0>; layer = <UIWindowLayer: 0x17dd46d0>>"]
+cy# UIApp.keyWindow
+#"<UIWindow: 0x17dd45a0; frame = (0 0; 320 480); opaque = NO; autoresize = RM+BM; gestureRecognizers = <NSArray: 0x17dd4be0>; layer = <UIWindowLayer: 0x17dd46d0>>"
+
+- view delegate 확인
+cy# UIApp.delegate
+#"<TestAppDelegate: 0x17d9bb90>"
+-> 딜리게이트 클래스 이름이 TestAppDelegate 인 것을 확인 가능함
+
+- root view 확인
+cy# UIApp.keyWindow.rootViewController 
+#"<UIViewController: 0x17d99ce0>"
+-> 클래스명으로 유추해봤을때 UIViewController는 UI를 보여주는 화면으로 추측이됨
+
+- View 계층 확인하기
+cy# UIApp.keyWindow.recursiveDescription()
+throw new TypeError(`'<UIWindow: 0x17dd45a0; frame = (0 0; 320 480); opaque = NO; autoresize = RM+BM; gestureRecognizers = <NSArray: 0x17dd4be0>; layer = <UIWindowLayer: 0x17dd46d0>>
+   | <UIView: 0x17ef0c80; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17dbf6b0>>
+   | <UILayoutContainerView: 0x17dd2200; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17ed11c0>>
+   |    | <UITransitionView: 0x17ec9670; frame = (0 0; 320 480); clipsToBounds = YES; autoresize = W+H; layer = <CALayer: 0x17ed5830>>
+   |    |    | <UIViewControllerWrapperView: 0x17eca3b0; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17dd2e40>>
+   |    |    |    | <UIView: 0x17dd2770; frame = (0 0; 320 431); autoresize = W+H; layer = <CALayer: 0x17ef71e0>>
+   |    |    |    |    | <UIImageView: 0x17d9fb10; frame = (0 0; 320 431); autoresize = W+H; userInteractionEnabled = NO; layer = <CALayer: 0x17eb8db0>>
+   |    |    |    |    | <UILabel: 0x17dca060; frame = (112 294; 42 21); text = '1.3'; clipsToBounds = YES; opaque = NO; autoresize = TM; userInteractionEnabled = NO; layer = <CALayer: 0x17eeefd0>>
+   |    |    |    |    | <UIButton: 0x17ec86c0; frame = (112 318; 180 25); opaque = NO; autoresize = TM; layer = <CALayer: 0x17d8e290>>
+   |    |    |    |    |    | <UIButtonLabel: 0x17ea71e0; frame = (0 4; 150 17); text = 'test@testweb.com'; clipsToBounds = YES; opaque = NO; userInteractionEnabled = NO; layer = <CALayer: 0x17ed18f0>>
+   |    |    |    |    | <UILabel: 0x17ed2620; frame = (112 344; 180 25); text = 'www.testweb.co.kr'; clipsToBounds = YES; opaque = NO; autoresize = TM; userInteractionEnabled = NO; layer = <CALayer: 0x17ec2990>>
+   |    | <UITabBar: 0x17dcc5e0; frame = (0 431; 320 49); autoresize = W+TM; layer = <CALayer: 0x17dcc770>>
+   |    |    | <_UITabBarBackgroundView: 0x17ed76d0; frame = (0 0; 320 49); autoresize = W; userInteractionEnabled = NO; layer = <CALayer: 0x17ed6da0>>
+   |    |    |    | <_UIBackdropView: 0x17ed79a0; frame = (0 0; 320 49); opaque = NO; autoresize = W+H; 
+cy# [[UIApp keyWindow] recursiveDescription].toString()
+`<UIWindow: 0x17dd45a0; frame = (0 0; 320 480); opaque = NO; autoresize = RM+BM; gestureRecognizers = <NSArray: 0x17dd4be0>; layer = <UIWindowLayer: 0x17dd46d0>>
+   | <UIView: 0x17ef0c80; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17dbf6b0>>
+   | <UILayoutContainerView: 0x17dd2200; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17ed11c0>>
+   |    | <UITransitionView: 0x17ec9670; frame = (0 0; 320 480); clipsToBounds = YES; autoresize = W+H; layer = <CALayer: 0x17ed5830>>
+   |    |    | <UIViewControllerWrapperView: 0x17eca3b0; frame = (0 0; 320 480); autoresize = W+H; layer = <CALayer: 0x17dd2e40>>
+   |    |    |    | <UIView: 0x17dd2770; frame = (0 0; 320 431); autoresize = W+H; layer = <CALayer: 0x17ef71e0>>
+   |    |    |    |    | <UIImageView: 0x17d9fb10; frame = (0 0; 320 431); autoresize = W+H; userInteractionEnabled = NO; layer = <CALayer: 0x17eb8db0>>
+   |    |    |    |    | <UILabel: 0x17dca060; frame = (112 294; 42 21); text = '1.3'; clipsToBounds = YES; opaque = NO; autoresize = TM; userInteractionEnabled = NO; layer = <CALayer: 0x17eeefd0>>
+   |    |    |    |    | <UIButton: 0x17ec86c0; frame = (112 318; 180 25); opaque = NO; autoresize = TM; layer = <CALayer: 0x17d8e290>>
+   |    |    |    |    |    | <UIButtonLabel: 0x17ea71e0; frame = (0 4; 150 17); text = 'test@testweb.com'; clipsToBounds = YES; opaque = NO; userInteractionEnabled = NO; layer = <CALayer: 0x17ed18f0>>
+   |    |    |    |    | <UILabel: 0x17ed2620; frame = (112 344; 180 25); text = 'www.testweb.co.kr'; clipsToBounds = YES; opaque = NO; autoresize = TM; userInteractionEnabled = NO; layer = <CALayer: 0x17ec2990>>
+   |    | <UITabBar: 0x17dcc5e0; frame = (0 431; 320 49); autoresize = W+TM; layer = <CALayer: 0x17dcc770>>
+   |    |    | <_UITabBarBackgroundView: 0x17ed76d0; frame = (0 0; 320 49); autoresize = W; userInteractionEnabled = NO; layer = <CALayer: 0x17ed6da0>>
+   |    |    |    | <_UIBackdropView: 0x17ed79a0; frame = (0 0; 320 49); opaque = NO; autoresize = W+H; userInteractionEnable
+
+- 예를 들어 작업해보기
+cy# [UIApplication sharedApplication]
+#"<UIApplication: 0x145a1d60>"
+cy# var a = [UIApplication sharedApplication]
+#"<UIApplication: 0x145a1d60>"
+cy# a
+#"<UIApplication: 0x145a1d60>"
+cy# UIApp
+#"<UIApplication: 0x145a1d60>"
+cy# a.delegate
+#"<TestAppDelegate: 0x145bdfa0>"
+
+cy# [[UIApplication sharedApplication] setStatusBarHidden:YES animated:YES]
+-> 프로그램상단의 상태표시바가 사라지게됨
+cy# [[UIApplication sharedApplication] setStatusBarHidden:NO animated:NO]
+
+cy# [[UIApplication sharedApplication] setApplicationIconBadgeNumber:100]
+-> 프로그램 뱃지 갯수를 표시하지 않는 앱이나 100개로 표시되게 설정 가능함
+cy# [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0]
+
+	- 에러의 이유를 모르겠다 커널버전 업데이트를 해주라는 말이 있음
+cy# UIApp.keyWindow.rootViewController
+#"<UIViewController: 0x16da4ec0>"
+cy# function printMethods(className){
+    var count = new new Type("I");
+    var methods = class_copyMethodList(objc_getClass(className), count);
+    var methodsArray = [];
+    for (var i = 0; i< *count; i++){
+    var method = methods[i];
+    methodsArray.push({selector:method_getName(method), implementation:method_getImplementation(method)});
+    }
+    free(methods);
+    free(count);
+    return methodsArray;
+    }
+cy# printMethods(UIViewController)
+MS:Error: _krncall(mach_vm_read_overwrite(task, data, sizeof(*baton), reinterpret_cast<mach_vm_address_t>(baton), &error)) =268435459
+*** _assert(status == 0):../Inject.cpp(143):InjectLibrary
+
+--------------------------------------------------------------------------------------------------
+
+16) keychain_dumper 를 이용하여 iOS에 보관하는 keychain 데이터를 추출함
+- Keychain_Dumper를 설치 (https://github.com/ptoomey3/Keychain-Dumper )
+
+- 모든 Keychain 접근 그룹 권한 정보를 가지고 있는 entitlements 파일을 가지고 있거나 모든 Keychain 데이터에 접근할 수 있게 해주는  Keychain 접근 그룹 권한을 사용하는 것
+/private/var/Keychains/keychain-2.db 의 권한을 변경 - chmod +r ./keychain-2.db
+( heonjin-iPhone:/var/mobile/downloads/Keychain-Dumper-master root# ls -al /private/var/Keychains/keychain-2.db
+-rw------- 1 _securityd wheel 339968 Aug  1  2017 /private/var/Keychains/keychain-2.db)
+-> -rw-r--r-- 1 _securityd wheel 339968 Aug  1  2017 /private/var/Keychains/keychain-2.db
+
+- ./keychain_dumper -a > keychain.txt
+heonjin-iPhone:/var/mobile/downloads/Keychain-Dumper-master root# head -20 keychain.txt 
+Generic Password
+----------------
+Service: iCloud Keychain Account Meta-data
+Account: 
+Entitlement Group: com.apple.security.sos
+Label: (null)
+Accessible Attribute: kSecAttrAccessibleAlwaysThisDeviceOnly, protection level 3
+Description: (null)
+Comment: (null)
+Synchronizable: 0
+Generic Field: (null)
+Generic Password 
+----------------
+Service: AirPort
+Account: Imagine_heonjin
+Entitlement Group: apple
+Label: (null)
+Accessible Attribute: kSecAttrAccessibleAfterFirstUnlock, protection level 1
+Description: (null)
+Comment: (null)
+Synchronizable: 0
+Generic Field: (null)
+Keychain Data: wifi#123
+
+17) sqlite3을 사용해서 로컬드라이브에 저장되어 있는 정보들을 확인 할 수 있음
+heonjin-iPhone:/var/mobile/Containers root# find / -name "*sqlite"
+/private/var/mobile/Applications/5A692080-5B58-test-B4D8-00000/Documents/Users/375832242/Uploads.sqlite
+/private/var/mobile/Applications/5A692080-5B58-test-B4D8-00000/Library/Caches/PSPDFKit/Index/index.sqlite
+/private/var/mobile/Applications/67D95CAC-4D7D-test-8025-00000/Library/Caches/com.test/SnoopiCache/SnoopiDataStore/com.test_DebugLogMonitor.sqlite
+/private/var/mobile/Applications/67D95CAC-4D7D-test-8025-00000/Library/Caches/com.test/SnoopiCache/SnoopiDataStore/com.test_FilesystemMonitor.sqlite
+/private/var/mobile/Applications/EEE82BFD-6888-test-B6D3-00000/KakaoTalk.app/Message.sqlite
+/private/var/mobile/Applications/EEE82BFD-6888-test-B6D3-00000/KakaoTalk.app/client_log.sqlite
+
+sqlite> .tables 
+filesystem
+
+sqlite> .schema
+CREATE TABLE filesystem ('id' INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL  UNIQUE,'timestamp' REAL NOT NULL,'path' VARCHAR(255) NOT NULL,'protection_class' INTEGER NOT NULL,'access_mode' INTEGER,'other_flags' TEXT,'sandbox' INTEGER NOT NULL,'type' INTEGER NOT NULL,'action' INTEGER NOT NULL);
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE INDEX filesystem_timeindex on filesystem(timestamp);
+
+sqlite> select * from filesystem;
+1|1575614656.62173|/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7|1|1||0|0|1
+2|1575614656.91251|/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/test.app/test@2x~iphone.png|1|1||1|0|1
+3|1575614656.93559|/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/test.app/test@2x~iphone.png|1|1||1|0|1
+4|1575614656.96131|/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/test.app/test@2x.png|1|1||1|0|1
+5|1575614656.99234|/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/test.app/test@2x~iphone.png|1|1||1|0|1
+6|1575614657.01585|/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/test.app/test@2x~iphone.png|1|1||1|0|1
+
+18) 개발자가 개인정보와 같은 주요 데이터를 plist 파일에 저장해 개인정보들이 유출될 수 있음
+heonjin-iPhone:~ root# cat /private/var/mobile/Applications/67D95CAC-4D7D-test-8025-0000/Library/Caches/com.test/SnoopiCache/com.test_NetworkInterfaces.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>Interfaces</key>
+        <array>
+                <dict>
+                        <key>Active</key>
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+19) App Screenshot 복구해보기
+heonjin-iPhone:~ root# find / -name "*downscaled*"
+/private/var/mobile/Applications/0B6997B2-8425-472B-906A-894D2B28674B/Library/Caches/Snapshots/com.path.Path/Main-downscaled
+/private/var/mobile/Applications/16A3DB1C-0C05-4788-B182-E7B5B7CBAD2C/Library/Caches/Snapshots/com.mdlab.VevoMusic/Main-downscaled
+/private/var/mobile/Applications/25DA1F38-DD04-4EE8-8A8A-87FD89F12B66/Library/Caches/Snapshots/fm.listr.listrfm/Main-downscaled
+/private/var/mobile/Applications/3B57CAB4-02B0-4C1C-BC95-F993A96C0081/Library/Caches/Snapshots/com.testsoftenter.testsns/Main-downscaled
+/private/var/mobile/Applications/419379EB-4164-4DA8-9A8F-F6D863BC2815/Library/Caches/Snapshots/com.apple.mobilemail/Main-downscaled
+/private/var/mobile/Applications/4B148588-0634-4428-92A9-DA56FF2E2221/Library/Caches/Snapshots/com.apple.mobilesafari/Main-downscaled
+/private/var/mobile/Applications/57CD5905-8CAC-42AA-A23B-FF38246396D1/Library/Caches/Snapshots/com.nhncorp.ndrive/Main-downscaled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-> 해당 경로에 들어가면 png 파일들 존재
+
+20) Keystroke Logging - '/var/mobile/Library/Keyboard/' 에 저장되어 있는 dat 파일들을 확인하면 키로깅된 내용들을 볼 수 있음 (키로거앱 설치로도 가능)
+heonjin-iPhone:/var/mobile/Library/Keyboard root# cat dynamic-text.dat 
+DynamicDictionary-5stbigbossbillboardbinbiteyourapplebbuildbychriszincomecomconcerncontract
+worksiteworksitwrpuigfh wwwwWyoutubeyzumㅇ호ㅗㅗㅎㅎㄹㄹheonjin-iPhone:/var/mobile/Library/Keyboard root# cat Lexierra_ja_JP-dynamic-text.dat 
+ǃq
+
+[UIPasteboard generalPasteboard].items[0]
+
+21) sqlite3 명령으로 find / -name "*.sqlite" 를 통해서 얻은 파일들에서 개인정보를 추출 할 수 있음
+- Accounts3.sqlite 파일을 통해서 어플에서 사용되었던 개인 정보들 유출
+heonjin-iPhone:/var/mobile/Library/Keyboard root# sqlite3 /private/var/mobile/Library/Accounts/Accounts3.sqlite
+sqlite> select * from ZACCOUNT;
+1|2|1|1|0|0|0|2||433160780.192082||Holiday 
+26|2|4|1|1|1|1|3||597224109.234002|||||1F9306BF-7894-4000-8657-test||heonjin@test.com|
+27|2|1|1|1|1|1|8||597224158.782893|||||917B770C-E459-43D1-A0D7-test||heonjin@test.com|
+
+- UserInfo.sqlite 파일을 통해서 계정과 패스워드를 유출 할 수 있음
+heonjin-iPhone:/var/mobile/Library/Keyboard root# sqlite3 /private/var/mobile/Applications/BF3886AB-EE78-4EA6-9F63-6EF172CCA6C6/Documents/UserInfo.sqlite
+SQLite version 3.29.0 2019-07-10 17:32:03
+Enter ".help" for usage hints.
+sqlite> .tables
+ZLASTLOGIN    ZUSER         Z_METADATA    Z_PRIMARYKEY
+sqlite> select * from ZLASTLOGIN; 
+3|1|1|heonjin
+sqlite> select * from ZUSER;
+2|2|1|1|0|heonjin|heonjin|test!|
+
+22) fiddler를 통해서 패킷 덤프를 떠서 특이한 통신 확인 (민감데이터가 평문으로 날아가는지 확인 필요 - wireshark)
+- PC에 fiddler 설치 및 설정
+Tools > Options > Connections > Allow remote computers to connect 체크
+- 휴대폰에서 피들러 프록시 서버가 돌아가고 있는 192.168.61.57:8888로 접속해서 Fiddler Echo Service 화면이 나오면 정상적으로 셋팅된 것임
+- 설정 > 일반 > wifi > 연결된 wifi 선택 > HTTP 프록시 수동 > 프록시 서버 설정 
+- https 패킷을 보기위해서는 fiddler에서 제공하는 인증서를 PC와 모바일에서 모두 설치하여서 작업이 되야한다.
+
+23) 웹 OWASP Top 10 공격
+- 인젝션, XXS, CSRF, 파일다운로드, 파일업로드 시도 등
+-> 웹에서 실행했을때와 앱에서 실행했을때 통신의 경로가 다를 수 있음
+
+24) OWASP Top 10 - Code Tampering 취약점
+변조된 어플리케이션이 탈옥 또는 루팅된 디바이스에서 정상 구동 되는 취약점 (앱의 리패키징을 통해 개인정보 유출이나 스미싱 공격에 활용 될 수 있음)
+-> 간단한 확인으로는 HxD에서 특정 문자열 Hex값을 변환했을때 정상적으로 실행이 되는지 확인할 수 있음
+
+25) Pasteboard - 앱에서 저장했던 복사한 데이터를 통해 작성중이던 정보를 획득할 수 있음
+heonjin-iPhone:~ root# cycript -p 2761
+
+cy# [UIPasteboard generalPasteboard]
+#"<UIPasteboard: 0x19d84390>"
+
+cy# [UIPasteboard generalPasteboard].items[0]
+@{"public.utf8-plain-text":"Ggfff\nSecurity heon"}
+
+- 리눅스 최근 생성된 파일 확인
+find / -type f -mtime -일수 -print
+
+26) sqlite3과 find / -name "*.db" 를 통해서 앱내에 저장된 db정보를 확인 할 수 있음
+heonjin-iPhone:~ root# sqlite3 /private/var/Keychains/keychain-2.db
+SQLite version 3.29.0 2019-07-10 17:32:03
+Enter ".help" for usage hints.
+sqlite> .tables
+cert      genp      inet      keys      tversion
+sqlite> select * from keys;
+2U	|0|73|256|256|0.0|0.0|0|0|1|0|0|1|1|1|0|0|0|0|1||ichat|dku|0|0|r_
+                                                                     s)*0
+2U	|0|42|1280|1280|0.0|0.0|0|0|1|0|0|1|1|1|0|0|0|0|1||ichat|dku|0|0|rPjC
+|433160896.252873|433160896.252873|<XVss1v|1|1|1|NfWtB"|^kK
+82|1|1|˃L                                                                 7|433404888.661284|433404888.661284|<XVssF
+
+27) iNalyzer를 사용하여 동적 분석
+
+28) Introspy
+https://github.com/iSECPartners/Introspy-iOS/releases/download/ios-tracer-v0.4/com.isecpartners.introspy-v0.4-iOS_7.deb
+
+
+
+
+※ iOS 안티 디버깅 방법
+1) ios 디버깅 방지 코드 추가
+#ifndef DEBUG
+    ptrace (PT_DENY_ATTACH, 0, 0, 0);
+#endif
+
+2) 메소드를 공격자가 접근할 이름으로 유도하여 불법적으로 접근하는 공격자에 대해 제제를 가할 수 있음
+ex) Cycript를 사용하여 userLogin 메소드에 접근을 한다면 앱의 중요 정보를 지우기 등 (exit(-1);)
+
+3) Cydia와 같은 프로그램이 깔려있는지 확인 하여 탈옥 여부 확인
+NSString *filePath = @"/Applications/Cydia.app";
+if ([[NSFileManager defaultManager] fileExistsAtPath:filePath])
+{
+    //Device is jailbroken
+}
+
+-----------------------------------------------------------------------------------------------------------------------
+
++(BOOL)isJailbroken{
+  
+#if !(hack_iphone)
+
+   if ([[NSFileManager defaultManager] fileExistsAtPath:@"/Applications/Cydia.app"]){
+      return YES;
+    }else if([[NSFileManager defaultManager] fileExistsAtPath:@"/Library/MobileSubstrate/MobileSubstrate.dylib"]){
+      return YES;
+    }else if([[NSFileManager defaultManager] fileExistsAtPath:@"/bin/bash"]){
+      return YES;
+    }else if([[NSFileManager defaultManager] fileExistsAtPath:@"/usr/sbin/sshd"]){
+      return YES;
+    }else if([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt"]){
+      return YES;
+    }
+
+  NSError *error;
+    NSString *stringToBeWritten = @"This is a test.";
+    [stringToBeWritten writeToFile:@"/private/jailbreak.txt" atomically:YES
+          encoding:NSUTF8StringEncoding error:&error];
+    if(error==nil){
+    //Device is jailbroken
+    return YES;
+  } else {
+    [[NSFileManager defaultManager] removeItemAtPath:@"/private/jailbreak.txt" error:nil];
+  }
+
+  if([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"cydia://package/com.example.package"]]){
+    //Device is jailbroken
+    return YES;
+  }
+#endif
+
+  //All checks have failed. Most probably, the device is not jailbroken
+  return NO;
+}
+
+-> 우회하는 방법
+1) Class-dump-z를 사용하여 클래스 정보를 확보
+2) Cycript를 통해 JailDetector->isa.messages
+3) 우회를 위해 메소드의 함수 내용을 변경시켜줌
+JailDetector->isa.messages['isJailbroken'] = function() { return false; }
+[JailDetector isJailbroken]
+0
+=> return이 true에서 false로 바뀌게되어 종료하지 않게됨

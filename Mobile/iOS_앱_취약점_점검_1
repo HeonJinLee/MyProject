@@ -1,0 +1,356 @@
+##### IOS 앱 취약점 점검을 위한 셋팅
+1) 탈옥 > Cydia앱에서 repository 소스 추가
+Bigboss : apt.thebigboss.org/repofiles/cydia/
+Cydia/Telesphoreo : apt.saurik.com
+cydia.radare : cydia.radare.org/
+25PP : apt.25pp.com
+repo666 : repo666.ultrasn0w.com
+ZodTTD & MacCiti : cydia.zodttd.com/repo/cydia
+Snoop-it : repo.nesolabs.de
+frida : build.frida.re
+
+2) 점검에 필요 툴 설치
+Openssh 설치 : ssh 접근을 위해 필요
+bigboss recommanded tool 설치 (wget 등)
+clutch 설치 : ipa 복호화 도구 -> 설치 후 권한 변경
+Apple File Conduit "2" 설치 : ifunbox에서 jailbroken 확인 및 연결
+Snoot-it 설치 : 동적 분석 툴 (32비트만 사용가능)
+Mobile Terminal : 기기 자체에서 'localhost'로 접속을 해주는 툴
+Frida for 32-bit devices : PC와 휴대폰 간에 프리다를 연동하기 위해 설치
+Dropbear.deb : cydia에서 openssh가 정상적으로 작동이 잘안될때 설치(pscp.exe .\Dropbear.deb root@127.0.0.1:/var/mobile/downloads)
+class-dump-z : 클래스 파일 내 오브젝트 분석을 위해 설치
+(wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/networkpx/class-dump-z_0.2a.tar.gz --no-check-certificate)
+
+3) sample ipa 파일 설치
+github.com/bitbar/testdroid-samples/blob/master/xcode/ipa/calculator.ipa
+
+4) ifunbox와 아이폰을 연동하기 위해 버전을 맞춰주었음
+- 아이튠즈 버전 : 12.43
+software.naver.com/software/version.nhn?softwareId=MFS_100204&categoryId=D0100000
+- 아이펀박스 버전 : 4.0
+
+5) iFunbox > 장치 > USB 터널 클릭 > SSH 터미널 (root / alpine)
+heonjin-iPhone:~ root# whoami
+root
+
+6) PC와 frida가 제대로 잘 연동이 되었는지 확인
+c:\lhj>frida-ls-devices
+Id                                        Type    Name
+----------------------------------------  ------  ------------
+local                                     local   Local System
+4df31c4b8e6c369352c53c8ffea2f21949483c34  usb     Apple iPhone
+tcp                                       remote  Local TCP
+
+c:\lhj>frida-ps -U
+PID  Name
+---  -------------------------
+210  Mail
+ 38  AppleIDAuthAgent
+ 24  BTServer
+148  BlueTool
+173  CloudKeychainProxy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+7) 취약점 점검을 위한 앱 설치
+c:\lhj>pscp.exe .\calculator.ipa root@127.0.0.1:/var/mobile/downloads
+c:\lhj>pscp.exe .\Clutch-2.0.4 root@127.0.0.1:/var/mobile/downloads
+
+8) frida-trace 사용
+frida-trace -U -f com.test.test -i *
+
+앱 개발 시, 앱 규모에 따라 숱하게 많은 라이브러리들을 사용하는데 프리다는 메모리에 올라간 그 라이브러리들을 가지고 우선 저 js들을 생성한다는 것이다.
+즉 실제 발생한 이벤트로 js들이 생성된게 아니라, 메모리에 떠있는 놈들 기준으로 생성한다는 것이다.
+
+그리고 맨 뒤의 "*" 때문에 떠있는 애들이 싹다 훅이 걸린거였다.
+나는 이 포인트에서, 후킹하시던 선배들이 항상 IDA를 같이 사용하는 이유도 이해가 갔다.
+IDA로 소스코드를 복원해서, 앱 실행시 실제로 사용되는 API, 메소드 명 등을 파악해야 후킹이 가능하니까 IDA와 Frida가 항상 같이 보였던 것이다.
+
+9) Clutch를 통해 서명 및 암호화가 된 앱들을 서명 해제 및 복호화를 시도
+- Clutch -i : 복호화 가능 앱 리스트 찾기
+Installed apps:
+ 1:   Talk <com.path.Messaging>
+ 2:    <com.nhncorp.NaverBlog>
+ 3:   Musicovery <com.musicovery>
+ 4:   Facebook <com.facebook.Facebook>
+ 5:   NaverNDrive <com.nhncorp.ndrive>
+ 6:   OneDrive <com.microsoft.skydrive>
+ 7:   NAVER <com.nhncorp.NaverSearch>
+
+- Clutch -b 앱번호 : 바이너리 덤프 시도 (앱번호는 -i 옵션 제일 앞에 있음)
+heonjin-iPhone:/var/mobile/downloads root# Clutch -b 4
+Now dumping com.facebook.Facebook
+
+DEBUG | ClutchBundle.m:-[ClutchBundle prepareForDump] [Line 30] | preparing for dump
+DEBUG | ClutchBundle.m:-[ClutchBundle prepareForDump] [Line 45] | checking rpath for /private/var/mobile/Applications/97295DD0-E0E2-4110-B0D9-82ADFDCC1F78/Facebook.app/Facebook
+DEBUG | optool-operations.m:BOOL binaryHasRPATH(NSMutableData *__strong, NSString *__strong, uint32_t *, thin_header) [Line 281] | didn't find rpath, no injection!
+DEBUG | BundleDumpOperation.m:-[BundleDumpOperation main] [Line 136] | Finding compatible dumper for binary <Facebook> with arch cputype: 12
+DEBUG | Dumper.m:-[Dumper compatibilityMode] [Line 391] | segment cputype: 12, cpusubtype: 9
+DEBUG | Dumper.m:-[Dumper compatibilityMode] [Line 392] | device  cputype: 12, cpusubtype: 9
+
+-> 결과물은 /var/tmp/Clutch/ 하위에 생김
+heonjin-iPhone:/var/tmp/clutch/5CB7D88E-E659-4B90-A3F5-EE4680C0497F/com.facebook.Facebook root# pwd
+/var/tmp/clutch/5CB7D88E-E659-4B90-A3F5-EE4680C0497F/com.facebook.Facebook
+
+heonjin-iPhone:/var/tmp/clutch/5CB7D88E-E659-4B90-A3F5-EE4680C0497F/com.facebook.Facebook root# ls -l
+total 54280
+-rwxr-xr-x 1 mobile mobile 55575328 Dec  5 17:22 Facebook*
+
+※ 트러블 슈팅
+1) frida-server를 설치하였는데 frida-server&로 프로세스를 실행하면 자꾸 Bad CPU type in executable가 나왔음
+-> 아이폰4는 32bit 운영체제인데 시디아로 설치한 앱이 64bit 전용 앱으로 나온 오류로 확인되어 32비트 frida를 재설치 하였음
+
+2) frida 클라이언트와 서버의 버전이 맞지않으면 제대로 통신이 안하는 경우가 발생하여 버전을 일치시켜줬음
+c:\lhj>frida --version
+12.7.24
+
+heonjin-iPhone:~ root# frida-server --version
+12.7.24
+
+※ 참고 URL
+www.hahwul.com/2018/02/hacking-ios-app-idb-ruby-gem-package.html
+securitynote.tistory.com/17
+0005.tistory.com/category/%E2%96%A0%20IT%20Security/-%20iOS
+취약점 분석 환경 셋팅 : blog.naver.com/PostView.nhn?blogId=chogar&logNo=80212673789
+ifunbox를 이용하여 USB 연동 : www.hahwul.com/2015/01/iosipadiphone-usb-ssh-ios-ssh.html
+IOS 보안 튜토리얼 : j-a-l.tistory.com/4?category=809383
+CTF를 통한 IOS 앱 분석 : kimtruth.github.io/2017/12/15/white-hacker-league-CodeRed-iOS-Baby/
+
+--------------------------------------------------------------------------------------------------
+
+10) gdb를 통해 분석 가능
+heonjin-iPhone:/var/mobile/Applications/67D95CAC-4D7D-test-8025-000000000000/test.app root# gdb -p 1263
+GNU gdb 6.3.50-20050815 (Apple version gdb-1708 + reverse.put.as patches v0.4) (Mon Apr 16 00:53:47 UTC 2012)
+Copyright 2004 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License, and you are
+welcome to change it and/or distribute copies of it under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty" for details.
+This GDB was configured as "arm-apple-darwin".
+/private/var/mobile/Applications/67D95CAC-4D7D-test-8025-000000000000/test.app/1263: No such file or directory
+Attaching to process 1263.
+Reading symbols for shared libraries . done
+unable to read unknown load command 0x80000028
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+Reading symbols for shared libraries ........................................................................................................................................................................................................... done
+unable to read unknown load command 0x80000028
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+bfd_mach_o_scan: unknown architecture 0x100000c/0x0
+Reading symbols for shared libraries + done
+0x3977ca58 in mach_msg_trap ()
+(gdb) disas main
+No symbol table is loaded.  Use the "file" command.
+(gdb) info reg
+r0             0x10004005       268451845
+r1             0x7000006        117440518
+r2             0x0      0
+r3             0xc00    3072
+r4             0x1b03   6915
+r5             0xffffffff       -1
+r6             0x0      0
+r7             0x27d78e2c       668438060
+r8             0x0      0
+r9             0x1      1
+r10            0x1b03   6915
+r11            0xc00    3072
+r12            0xffffffe1       -31
+sp             0x27d78dec       668437996
+lr             0x3977c859       964151385
+pc             0x3977ca58       964151896
+cpsr           {
+  0x60000010,
+  n = 0x0,
+  z = 0x1,
+  c = 0x1,
+  v = 0x0,
+  q = 0x0,
+  j = 0x0,
+  ge = 0x0,
+  e = 0x0,
+  a = 0x0,
+  i = 0x0,
+  f = 0x0,
+  t = 0x0,
+  mode = 0x10
+}       {
+  0x60000010,
+  n = 0,
+  z = 1,
+  c = 1,
+  v = 0,
+  q = 0,
+  j = 0,
+  ge = 0,
+  e = 0,
+  a = 0,
+  i = 0,
+  f = 0,
+  t = 0,
+  mode = usr
+}
+
+11) 바이너리 파일을 IDA를 통해 Object C로 확인해서 분석
+
+12) snoop-it 을 사용하여 분석하려 했으나 노트북에서 snoop-it 웹페이지에 접근하려 했으나 잘되지 않음
+
+13) IPA 파일을 zip으로 변경하여서 압축해제하면 파일을 풀어 볼 수 있음 (/var/mobile/Applications/67D95CAC-4D7D-test-8025-000000000000/test.app 의 내용과 동일)
+
+14) class-dump-z 를 이용해서 class 정보를 dump
+heonjin-iPhone:/var/mobile/Applications/67D95CAC-test-4BA5-8025-000000000000/test.app root# class-dump-z test.app > test.txt
+heonjin-iPhone:/var/mobile/Applications/67D95CAC-test-4BA5-8025-000000000000/test.app root# head -30 test.txt 
+/**
+ * This header is generated by class-dump-z 0.2a.
+ * class-dump-z is Copyright (C) 2009 by KennyTM~, licensed under GPLv3.
+ *
+ * Source: (null)
+ */
+
+typedef struct _NSZone NSZone;
+
+typedef struct CGPoint {
+        float x;
+        float y;
+} CGPoint;
+
+typedef struct CGSize {
+        float _field1;
+        float _field2;
+} CGSize;
+
+typedef struct CGRect {
+        CGPoint _field1;
+        CGSize _field2;
+} CGRect;
+
+typedef struct _NSRange {
+        unsigned _field1;
+        unsigned _field2;
+} NSRange;
+
+@interface BaseFormat : NSObject <TestArchiving, TestUnArchiving> {
+        AZListNode* root;
+        NSMutableArray* allFiles;
+        NSMutableDictionary* volumeNames;
+        AZArchiveInfo* archiveInfo;
+        BOOL isWorking;
+        NSThread* worker;
+        Coder* coder;
+        Decryptor* decryptor;
+        id<NSObject, TestUserInteracting> userInteractionDelegate;
+        id<NSObject> archiveManager;
+        FILE* tmpFile;
+        FILE* archiveFile;
+        stat archiveStat;
+        NSArray* targetList;
+        NSString* destPath;
+        unsigned long contentMarginStart;
+        unsigned long contentMarginEnd;
+        int replaceOpt;
+        BOOL replaceApplyAll;
+        NSString* password;
+        BOOL passwordBuffer[1024];
+        unsigned long long processingTotal;
+        unsigned long long proceeded;
+        unsigned long long prevProceeded;
+        unsigned long prevTickCount;
+        int opCode;
+        int resultCode;
+        unsigned mbcsEncoding;
+        AZEncodingOption* encodingOpt;
+        BOOL isLastVolume;
+        double progressNotificationMinRate;
+        NSMutableArray* createdDir;
+        NSMutableArray* createdFiles;
+        BOOL isExternalFormat;
+        NSMutableArray* externalExtractFlags;
+}
+@property(retain) NSMutableArray* createdFiles;
+@property(retain) NSMutableArray* createdDir;
+@property(retain) NSMutableArray* externalExtractFlags;
+@property(retain) TestEncodingOption* encodingOpt;
+@property(retain) Decryptor* decryptor;
+@property(retain) Coder* coder;
+@property(assign) BOOL isWorking;
+@property(retain) NSThread* worker;
+@property(assign) int resultCode;
+@property(assign) int opCode;
+@property(retain) NSString* destPath;
+@property(retain) NSArray* targetList;
+@property(retain) NSString* password;
+@property(retain) TestListNode* root;
+@property(retain) NSMutableDictionary* volumeNames;
+@property(retain) NSMutableArray* allFiles;
+@property(retain) TestArchiveInfo* archiveInfo;
+@property(retain) id<NSObject> archiveManager;
+@property(retain) id<NSObject, TestUserInteracting> userInteractionDelegate;
+-(void)printOffset:(id)offset;
+-(id)defaultEncodingOption;
+-(void)findMBCSEncoding;
+-(long long)currentArcivePosition;
+-(int)seekArchive:(long long)archive base:(int)base;
+-(int)readArchive:(void*)archive size:(unsigned long)size;
+-(int)seekArchive:(long long)archive base:(int)base volume:(unsigned long)volume;
+-(int)getDataOffsetAndSeek:(id)seek;
+-(int)seekForwardArchiveContents:(long long)contents;
+-(int)readArchiveContents:(void*)contents size:(unsigned long)size;
+-(int)changeDataVolume:(unsigned long)volume;
+-(id)getVolumeName:(unsigned long)name;
+-(unsigned long)openedVolume;
+-(unsigned long)firstOpenVolume;
+-(id)getArchiveInfo;
+-(id)getFileInfo:(unsigned long)info;
+-(DecryptorArg_t)getDecrytInfo:(id)info;
+-(int)validateTargetFile:(id)file fileInfo:(id)info;
+-(int)validateParentPath:(id)path;
+-(void)removeCreatedItems;
+-(void)finishedExtractFile;
+-(int)writeExtractFile:(char*)file size:(unsigned long)size;
+-(int)prepareExtractFile:(id)file;
+-(void)queryNextVolumeOnMainThread:(id)thread;
+-(void)queryReplaceFileOnMainThread:(id)thread;
+-(void)queryFilePasswordOnMainThread:(id)thread;
+-(void)queryEncryptedHeaderPasswordOnMainThread:(id)thread;
+-(void)progressingOnMainThread:(id)thread;
+-(void)operationFinishedOnMainThread:(id)thread;
+-(void)operationStartOnMainThread:(id)thread;
+-(int)queryNextVolume:(id)volume;
+-(int)queryReplaceFile:(id)file;
+-(int)queryFilePassword:(id)password;
+-(int)queryEncryptedHeaderPassword;
+-(int)progressing;
+-(void)makeTree;
+-(void)workerThreadMain:(id)main;
+-(void)startWorker;
+-(void)cancelWorker;
+-(int)decompressExternal;
+-(int)decompressSolidBlock;
+-(int)decompress:(id)decompress;
+-(int)compress;
+-(int)scan;
+-(int)solidArchiving;
+-(int)normalArchiving;
+-(int)archiving;
+-(int)addArchivingList:(id)list filePath:(id)path;
+-(int)extractNode:(id)node;
+-(int)scanningExternalExtractingInfo:(id)info;
+-(int)externalExtracting;
+-(int)solidExtracting;
+-(int)normalExtracting;
+-(int)extracting;
+-(int)scanning;
+-(int)finishedOperation;
+-(int)preparingOperationOnMainThread:(int)thread option:(id)option;
+-(int)archivingTo:(id)to files:(id)files encodingOption:(id)option;
+-(int)archivingTo:(id)to files:(id)files;
+-(int)extractingTo:(id)to withArray:(id)array replaceOption:(int)option applyAll:(BOOL)all;
+-(int)extractingTo:(id)to withArray:(id)array;
+-(int)scanningArchive:(id)archive;
+-(void)clearData;
+-(void)dealloc;
+-(id)init;
+@end
+
+
+
