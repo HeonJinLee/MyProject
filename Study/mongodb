@@ -1,0 +1,242 @@
+# 몽고디비 설치
+※ repo 등록 (vi /etc/yum.repos.d/mongodb.repo) - 아 뭔가 잘안된다.
+[mongodb-org-4.2]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/development/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-4.2.asc
+
+dnf install mongodb-org
+systemctl start mongod
+systemctl enable mongod
+systemctl status mongod
+
+※ 위의 방법으로 잘안되서... docker로 몽고디비 설치했다.
+sudo docker pull mongo
+sudo docker run --name mongodb -d -p 27017:27017 97a9a3e85158 -auth
+sudo docker exec -it 08e7218c6b5c bash
+
+root@08e7218c6b5c:/# mongo
+MongoDB shell version v4.2.3
+connecting to: mongodb://127.0.0.1:27017/?compressors=disabled&gssapiServiceName=mongodb
+Implicit session: session { "id" : UUID("325584dd-2ec3-408d-860e-ea1e160b31fc") }
+MongoDB server version: 4.2.3
+Welcome to the MongoDB shell.
+
+> use admin
+switched to db admin
+> db.createUser({
+... user: "heonjin",
+... pwd: "asd123",
+... roles:[{role: "userAdminAnyDatabase", db: "admin"}]
+... })
+Successfully added user: {
+    "user" : "heonjin",
+    "roles" : [
+        {
+            "role" : "userAdminAnyDatabase",
+            "db" : "admin"
+        }
+    ]
+}
+
+
+root@08e7218c6b5c:/# mongo -u "heonjin" -p "asd123" -authenticationDatabase "admin"
+MongoDB shell version v4.2.3
+connecting to: mongodb://127.0.0.1:27017/?authSource=admin&compressors=disabled&gssapiServiceName=mongodb
+Implicit session: session { "id" : UUID("87c2f3aa-6a20-46fc-9e69-0d3d2fdea0c8") }
+MongoDB server version: 4.2.3
+> show dbs
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+
+> db
+test
+
+> db.stats()
+{
+    "ok" : 0,
+    "errmsg" : "not authorized on test to execute command { dbstats: 1.0, scale: undefined, lsid: { id: UUID(\"87c2f3aa-6a20-46fc-9e69-0d3d2fdea0c8\") }, $db: \"test\" }",
+    "code" : 13,
+    "codeName" : "Unauthorized"
+}
+
+> db.createCollection("test",{capped:true, size:6142800, max:10000})
+{
+    "ok" : 0,
+    "errmsg" : "not authorized on heon to execute command { create: \"test\", capped: true, size: 6142800.0, max: 10000.0, lsid: { id: UUID(\"87c2f3aa-6a20-46fc-9e69-0d3d2fdea0c8\") }, $db: \"heon\" }",
+    "code" : 13,
+    "codeName" : "Unauthorized"
+}
+
+> db.createUser({user:"heon",pwd:"asd123", roles:["readWrite","userAdmin"]})
+Successfully added user: { "user" : "heon", "roles" : [ "readWrite", "userAdmin" ] }
+
+> use admin
+switched to db admin
+
+> show users
+{
+    "_id" : "admin.heon",
+    "userId" : UUID("a2b5d5b1-cb31-48f0-b1e0-4ede24583a90"),
+    "user" : "heon",
+    "db" : "admin",
+    "roles" : [
+        {
+            "role" : "readWrite",
+            "db" : "admin"
+        },
+        {
+            "role" : "userAdmin",
+            "db" : "admin"
+        }
+    ],
+    "mechanisms" : [
+        "SCRAM-SHA-1",
+        "SCRAM-SHA-256"
+    ]
+}
+{
+    "_id" : "admin.heonjin",
+    "userId" : UUID("c9192691-69b3-4ae2-9a3b-152ad74e4438"),
+    "user" : "heonjin",
+    "db" : "admin",
+    "roles" : [
+        {
+            "role" : "userAdminAnyDatabase",
+            "db" : "admin"
+        }
+    ],
+    "mechanisms" : [
+        "SCRAM-SHA-1",
+        "SCRAM-SHA-256"
+    ]
+}
+
+> db.createCollection("test",{capped:true, size:6142800, max:10000})
+{ "ok" : 1 }
+
+> show collections
+admin
+book
+test
+
+> db.book.drop()
+true
+
+> db.test.insert({"name":"gugudan"})
+WriteResult({ "nInserted" : 1 })
+> db.test.insert({"name1":"ISMS"},{"name":"PIMS"})
+WriteResult({ "nInserted" : 1 })
+> db.test.insert({"name2":"ISMS2"},{"name2":"PIMS2"})
+WriteResult({ "nInserted" : 1 })
+> db.test.find()
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+{ "_id" : ObjectId("5e799c6dde9cad568c9d8902"), "name1" : "ISMS" }
+{ "_id" : ObjectId("5e799c72de9cad568c9d8903"), "name2" : "ISMS2" }
+
+> show collections
+admin
+test
+
+> db.test.insert([{"name3":"ISMS3"},{"name3":"PIMS3","frame":"PIMS33"}]);
+BulkWriteResult({
+    "writeErrors" : [ ],
+    "writeConcernErrors" : [ ],
+    "nInserted" : 2,
+    "nUpserted" : 0,
+    "nMatched" : 0,
+    "nModified" : 0,
+    "nRemoved" : 0,
+    "upserted" : [ ]
+})
+> db.test.find()
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+{ "_id" : ObjectId("5e799c6dde9cad568c9d8902"), "name1" : "ISMS" }
+{ "_id" : ObjectId("5e799c72de9cad568c9d8903"), "name2" : "ISMS2" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8904"), "name3" : "ISMS3" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8905"), "name3" : "PIMS3", "frame" : "PIMS33" }
+
+> db.test.find({},{"_id":false,"name3":true})
+{  }
+{  }
+{  }
+{ "name3" : "ISMS3" }
+{ "name3" : "PIMS3" }
+
+> db.test.insert({"num":12});
+> db.test.insert({"num":15});
+> db.test.insert({"num":122});
+> db.test.insert({"num":22});
+> db.test.insert([{"num":22},{"num":11}]);
+
+> db.test.find()
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+{ "_id" : ObjectId("5e799c6dde9cad568c9d8902"), "name1" : "ISMS" }
+{ "_id" : ObjectId("5e799c72de9cad568c9d8903"), "name2" : "ISMS2" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8904"), "name3" : "ISMS3" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8905"), "name3" : "PIMS3", "frame" : "PIMS33" }
+{ "_id" : ObjectId("5e79b871a2cd8e58fd99a3bc"), "num" : 12 }
+{ "_id" : ObjectId("5e79b874a2cd8e58fd99a3bd"), "num" : 15 }
+{ "_id" : ObjectId("5e79b877a2cd8e58fd99a3be"), "num" : 122 }
+{ "_id" : ObjectId("5e79b879a2cd8e58fd99a3bf"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c0"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c1"), "num" : 11 }
+
+> db.test.find({"num":{$gt:10,$lt:30}})
+{ "_id" : ObjectId("5e79b871a2cd8e58fd99a3bc"), "num" : 12 }
+{ "_id" : ObjectId("5e79b874a2cd8e58fd99a3bd"), "num" : 15 }
+{ "_id" : ObjectId("5e79b879a2cd8e58fd99a3bf"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c0"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c1"), "num" : 11 }
+
+※ 비교
+> db.test.find({"name":"gugudan"})
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+
+> db.test.find({"num":"11"})
+> db.test.find({"num":11})
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c1"), "num" : 11 }
+
+> db.test.find({"num":{$in:[11,22]}})
+{ "_id" : ObjectId("5e79b879a2cd8e58fd99a3bf"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c0"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c1"), "num" : 11 }
+
+> db.test.find({"num":{$not:{$eq:11}}});
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+{ "_id" : ObjectId("5e799c6dde9cad568c9d8902"), "name1" : "ISMS" }
+{ "_id" : ObjectId("5e799c72de9cad568c9d8903"), "name2" : "ISMS2" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8904"), "name3" : "ISMS3" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8905"), "name3" : "PIMS3", "frame" : "PIMS33" }
+{ "_id" : ObjectId("5e79b871a2cd8e58fd99a3bc"), "num" : 12 }
+{ "_id" : ObjectId("5e79b874a2cd8e58fd99a3bd"), "num" : 15 }
+{ "_id" : ObjectId("5e79b877a2cd8e58fd99a3be"), "num" : 122 }
+{ "_id" : ObjectId("5e79b879a2cd8e58fd99a3bf"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c0"), "num" : 22 }
+
+> db.test.find().pretty()
+{ "_id" : ObjectId("5e799c69de9cad568c9d8901"), "name" : "gugudan" }
+{ "_id" : ObjectId("5e799c6dde9cad568c9d8902"), "name1" : "ISMS" }
+{ "_id" : ObjectId("5e799c72de9cad568c9d8903"), "name2" : "ISMS2" }
+{ "_id" : ObjectId("5e799f95de9cad568c9d8904"), "name3" : "ISMS3" }
+{
+    "_id" : ObjectId("5e799f95de9cad568c9d8905"),
+    "name3" : "PIMS3",
+    "frame" : "PIMS33"
+}
+{ "_id" : ObjectId("5e79b871a2cd8e58fd99a3bc"), "num" : 12 }
+{ "_id" : ObjectId("5e79b874a2cd8e58fd99a3bd"), "num" : 15 }
+{ "_id" : ObjectId("5e79b877a2cd8e58fd99a3be"), "num" : 122 }
+{ "_id" : ObjectId("5e79b879a2cd8e58fd99a3bf"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c0"), "num" : 22 }
+{ "_id" : ObjectId("5e79b892a2cd8e58fd99a3c1"), "num" : 11 }
+
+> db.test.find({"name3":"PIMS3"}).pretty()
+{
+    "_id" : ObjectId("5e799f95de9cad568c9d8905"),
+    "name3" : "PIMS3",
+    "frame" : "PIMS33"
+}
