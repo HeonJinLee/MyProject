@@ -42,7 +42,7 @@ Successfully added user: {
 }
 
 
-root@08e7218c6b5c:/# mongo -u "heonjin" -p "asd123" -authenticationDatabase "admin"
+root@08e7218c6b5c:/# mongo -u "heonjin" -p "" -authenticationDatabase "admin"
 MongoDB shell version v4.2.3
 connecting to: mongodb://127.0.0.1:27017/?authSource=admin&compressors=disabled&gssapiServiceName=mongodb
 Implicit session: session { "id" : UUID("87c2f3aa-6a20-46fc-9e69-0d3d2fdea0c8") }
