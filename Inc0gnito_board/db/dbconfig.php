@@ -1,8 +1,8 @@
 <?php
-   $db = new mysqli('localhost', 'root', 'moo1gogg1', 'board');
+   $db = new mysqli('localhost', 'root', 'test', 'board');
 
    if($db->connect_error) {
-      die('µ¥ÀÌÅÍº£ÀÌ½º ¿¬°á¿¡ ¹®Á¦°¡ ÀÖ½À´Ï´Ù.\n°ü¸®ÀÚ¿¡°Ô ¹®ÀÇ ¹Ù¶ø´Ï´Ù.');
+      die('ë°ì´í„°ë² ì´ìŠ¤ ì—°ê²°ì— ë¬¸ì œê°€ ìˆìŠµë‹ˆë‹¤.\nê´€ë¦¬ìì—ê²Œ ë¬¸ì˜ ë°”ëë‹ˆë‹¤.');
    }
 
    $db->set_charset('utf8');
