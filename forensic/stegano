@@ -1,0 +1,28 @@
+# 이미지 파일 스테가노그래피
+1. 삽입을 통한 문제
+1) PNG File Signature
+SoI(Start of Image) : 89 50 4E 47 0D 0A 1A 0A
+EoI(End of Image) : 49 45 4E 44 AE 42 60 82
+- EoI 뒤에 데이터를 숨길 수 있음
+
+2) JPG File Signature
+SoI(Start of Image) : FF D8 FF
+EoI(End of Image) : FF D9
+- EoI 뒤에 데이터를 숨길 수 있음
+- 파일 헤더의 세부사항에 데이터를 숨길 수 있음
+
+3) BMP File Signature
+SoI : 47 49 46 38 37 61, 47 49 46 38 39 61
+EoI : 00 3B
+
+2. LSB 변조
+1) 최하위 비트인 LSB(Least Significant Bit - 가장 중요하지 않은 비트)를 변조하는 방법
+- 주로 JPEG, BMP 같은 24비트(빨강 8, 초록 8, 파랑 8) 이미지 파일에 적용
+흰색을 나타내는 FF FF FF FF FF FF FF FF를 FE FF FE FE FE FE FF FE와 같은 방식으로 변경하여 01000010 = 0x42 = B라는 문자열을 표현 할 수 있음
+
+# 스테가노그래피 연습 사이트
+http://www.wechall.net/challs/Stegano/by/chall_score/ASC/page-1
+
+# 스테가노그래피 참고 툴
+https://incoherency.co.uk/image-steganography/#unhide
+http://www.jjtc.com/Steganography/tools.html
