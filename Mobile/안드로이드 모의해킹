@@ -1,0 +1,566 @@
+# 앱 취약점 점검
+1. nox에서 device가 정상적으로 켜져있는지 확인
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" devices
+List of devices attached
+127.0.0.1:62001 device
+
+2. nox 쉘로 접근
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" shell
+root@shamu:/ # ls
+acct
+cache
+
+3. 설치된 패키지 확인 가능
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" shell pm list packages -f
+package:/system/priv-app/TelephonyProvider/TelephonyProvider.apk=com.android.providers.telephony
+package:/system/priv-app/CalendarProvider/CalendarProvider.apk=com.android.providers.calendar
+package:/system/priv-app/MediaProvider/MediaProvider.apk=com.android.providers.media
+package:/system/priv-app/WallpaperCropper/WallpaperCropper.apk=com.android.wallpapercropper
+package:/system/app/DocumentsUI/DocumentsUI.apk=com.android.documentsui
+
+4. 앱을 설치 전/후 비교
+cd /root
+find / > before.txt
+adb install test.apk
+find / > after.txt
+
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" pull /root/before.txt .
+[100%] /root/before.txt
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" pull /root/after.txt .
+[100%] /root/after.txt
+
+diff /tmp/before.txt /tmp/after.txt
+
+※ 안드로이드 녹스 사용 시 아래와 같이 RO file system으로 안써질때 해결방안
+- /system/bin/sh: can't create before: Read-only file system
+adb root (root access)
+adb shell (Enter as root)
+mount -o rw,remount / (for permission write access)
+
+5. apk 파일을 디컴파일을 하기 위해 dex 파일로 변환
+ 1) apk파일명을 zip으로 변경
+ 2) zip파일을 압축 해제 후 classes.dex 파일을 dex2jar나 apktool로 디컴파일하여 dex 파일 추출
+- dex2jar를 이용한 방법
+c:\lhj>C:\lhj\dex2jar-2.0\d2j-dex2jar.bat -f classes.dex
+dex2jar classes.dex -> .\classes-dex2jar.jar
+Detail Error Information in File .\classes-error.zip
+Please report this file to http://code.google.com/p/dex2jar/issues/entry if possible.
+
+- apktool을 이용한 방법 : dex2jar를 이용하면 디컴파일을 하기 위한 jar파일만 이쁘게 나와서 해당 툴도 사용해서 이것저것 구체적인 내용을 확인해야함
+c:\lhj>java -jar C:\lhj\tool\apktool.jar d C:\lhj\test.apk
+I: Using Apktool 2.2.4 on test.apk
+I: Loading resource table...
+
+6. apktool로 apk 파일을 분해하여 모든 파일에 하드코딩으로 박아 놓거나 파일에서 구할 수 있는 정보 추출
+1) AndroidManifest.xml를 통해 해당앱에서 사용중인 권한들을 확인 가능함
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+- 다른 앱에서 생성된 파일에 액세스하려면 다음 조건이 모두 충족
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+- 외부 저장소에 존재하는 파일에 대해 읽기, 쓰기 모두 지원하기 위해 사용
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+- 포그라운드에서 사용가능하도록 설정
+<uses-permission android:name="android.permission.INTERNET"/>
+- 앱에서 인터넷에 접속하도록 설정
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+- 기기를 켜진 상태로 유지하기 위한 설정 (기기가 절전 모드로 전환되기 전에 일부 작업을 완료하기 위해 CPU를 실행 중인 상태로 유지)
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+- 네트웍이 연결된것을 확인할수 있게함
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"/>
+- SDK가 요구하는 permission들을 추가하며 앱의 유입 경로 기능을 사용
+<uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
+- 구글 서비스 사용
+    <service android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+    <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+    <receiver android:exported="true" android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+
+7. 앱 삭제 후 찌꺼기 파일이 남는지 확인
+root@shamu:/data/data # ls -l com.test
+com.test: No such file or directory
+
+8. 기능의 정상동작
+앱 실행 후 ps 명령을 통해 특이한 프로세스가 함께 돌아가는지 확인
+
+9. 루팅 및 탈옥 기기에서 정상 동작
+루팅이나 탈옥한 기기에서 앱이 정상적으로 동작을 하는지 확인 과정이 필요함
+
+10. ID 값의 변경
+프로그램이 실행중인 ID와 설치된 ID가 동일한지 확인
+root@shamu:/ # ps | grep test
+u0_a42    3938  1488  1659124 173816 ffffffff b746f3f2 S com.test
+
+root@shamu:/data/data # ls -alR com.test
+com.test:
+drwxrwx--x u0_a42   u0_a42            2020-07-02 09:03 cache
+drwxrwx--x u0_a42   u0_a42            2020-07-02 09:01 databases
+drwxrwx--x u0_a42   u0_a42            2020-07-02 09:03 files
+lrwxrwxrwx install  install           2020-07-02 08:59 lib -> /data/app/com.test/lib/x86
+drwxrwx--x u0_a42   u0_a42            2020-07-02 09:01 no_backup
+drwxrwx--x u0_a42   u0_a42            2020-07-02 09:03 shared_prefs
+
+11. 동일키로 서명된 서로 다른 앱 간의 UID 공유
+AndroidManifest.xml 파일에서 SharedUserID이 사용되고 있는지 확인이 필요함
+
+12. 인텐트 권한의 올바른 설정
+인텐트가 무분별히 많이 사용되고 있는지 확인이 필요함
+
+13. 중요한 데이터들이 평문으로 저장되거나 전송이 되는지 확인이 필요함
+
+14. 개인정보 동의 및 처리방침 확인
+
+15. 파일 다운로드, SQL Injection, XSS, 디렉터리리스팅 등등 서버에서 발생할 수 있는 취약점 공격 테스트
+
+16. drozer 연동
+c:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" forward tcp:31415 tcp:31415
+
+c:\lhj>netstat -an | find "31415"
+  TCP    127.0.0.1:31415        0.0.0.0:0              LISTENING
+
+※ drozer 공식홈페이지에서 msi 파일을 설치하면 파이썬 2.x대와 연동이 되게 되는데 3점대를 사용하고 있을 경우 환경 변수 수정이 필요함
+
+C:\Users\lhj>drozer console connect
+:0: UserWarning: You do not have a working installation of the service_identity module: 'No module named service_identity'.  Please install it from <https://pypi.python.org/pypi/service_identity> and make sure all of its dependencies are satisfied.  Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.  Many valid certificate/hostname mappings may be rejected.
+Selecting 107b444a18878391 (samsung SM-G955N 5.1.1)
+
+            ..                    ..:.
+           ..o..                  .r..
+            ..a..  . ....... .  ..nd
+              ro..idsnemesisand..pr
+              .otectorandroidsneme.
+           .,sisandprotectorandroids+.
+         ..nemesisandprotectorandroidsn:.
+        .emesisandprotectorandroidsnemes..
+      ..isandp,..,rotectorandro,..,idsnem.
+      .isisandp..rotectorandroid..snemisis.
+      ,andprotectorandroidsnemisisandprotec.
+     .torandroidsnemesisandprotectorandroid.
+     .snemisisandprotectorandroidsnemesisan:
+     .dprotectorandroidsnemesisandprotector.
+
+drozer Console (v2.4.4)
+dz>
+
+17. 앱의 기본 정보 및 권한 보기
+dz> run app.package.info -a com.test
+Package: com.test
+  Application Label: ?ъ뿉踰?
+[Errno 0] Error
+-> Errno 0은 한글이 나와서 drozer가 깨지는 걸로 보인다
+
+18. drozer의 취약점 자동 분석 명령어
+1) 취약점 결과 전체 요약
+dz> run app.package.attacksurface com.test
+Attack Surface:
+  2 activities exported
+  2 broadcast receivers exported
+  1 content providers exported
+  0 services exported
+
+2) 액티비티 분석
+권한 검증 없이 직접 호출할 수 있는 액티비티를 찾을 수 있음
+dz> run app.activity.info -a com.test
+Package: com.test
+  com.test.MainActivity
+    Permission: null
+  com.facebook.CustomTabActivity
+    Permission: null
+
+dz> run app.activity.start --component com.test com.test.MainActivity
+dz> run app.activity.start --component com.test com.facebook.CustomTabActivity
+
+3) 브로드캐스트 리시버 분석
+dz> run app.broadcast.info -u -f test
+Package: com.test
+  Exported Receivers:
+  Hidden Receivers:
+    com.test.receiver.LocalPushNotificationPublisher
+      Permission: null
+
+4) content provider 분석 : 특정 앱이 사용하고 있는 DB를 공유하기 위해 사용
+dz> run app.provider.info -u -a com.test
+Package: com.test
+  Exported Providers:
+    Authority: com.facebook.app.FacebookContentProvider821671111584763
+      Read Permission: null
+      Write Permission: null
+      Content Provider: com.facebook.FacebookContentProvider
+      Multiprocess Allowed: False
+      Grant Uri Permissions: False
+  Hidden Providers:
+    Authority: com.test.fileprovider
+      Read Permission: null
+      Write Permission: null
+      Content Provider: androidx.core.content.FileProvider
+      Multiprocess Allowed: False
+      Grant Uri Permissions: True
+    Authority: com.test.coreInitializer
+      Read Permission: null
+      Write Permission: null
+      Content Provider: com.test.core.CoreInitializer
+      Multiprocess Allowed: False
+      Grant Uri Permissions: False
+    Authority: com.test.lifecycle-process
+      Read Permission: null
+      Write Permission: null
+      Content Provider: androidx.lifecycle.ProcessLifecycleOwnerInitializer
+      Multiprocess Allowed: True
+      Grant Uri Permissions: False
+    Authority: com.test.crashlyticsinitprovider
+      Read Permission: null
+      Write Permission: null
+      Content Provider: com.crashlytics.android.CrashlyticsInitProvider
+      Multiprocess Allowed: False
+      Grant Uri Permissions: False
+    Authority: com.test.FacebookInitProvider
+      Read Permission: null
+      Write Permission: null
+      Content Provider: com.facebook.internal.FacebookInitProvider
+      Multiprocess Allowed: False
+      Grant Uri Permissions: False
+    Authority: com.test.firebaseinitprovider
+      Read Permission: null
+      Write Permission: null
+      Content Provider: com.google.firebase.provider.FirebaseInitProvider
+      Multiprocess Allowed: False
+      Grant Uri Permissions: False
+
+- 콘텐트 프로바이더는 DB의 정보를 URI로 공유하므로 URI정보를 통해 공격이 가능함
+dz> run app.provider.finduri com.test
+Scanning com.test...
+content://com.google.android.gsf.gservices/prefix/
+content:// Uri/
+content://com.google.android.gms.phenotype
+content:// Uri
+content://com.google.android.gms.chimera
+content://com.google.android.gsf.gservices/
+content://com.test.lifecycle-process
+content://com.test.coreInitializer/
+content://com.test.fileprovider/
+content://com.test.crashlyticsinitprovider
+content://com.google.android.gsf.gservices
+content://com.test.crashlyticsinitprovider/
+content://com.facebook.app.FacebookContentProvider/
+content://com.google.android.gms.chimera/
+content://com.google.android.gms.phenotype/
+content://com.facebook.katana.provider.AttributionIdProvider/
+content://com.test.FacebookInitProvider/
+content://com.google.android.gsf.gservices/prefix
+content://com.test.lifecycle-process/
+content://com.test.firebaseinitprovider
+content://com.test.FacebookInitProvider
+content://com.facebook.app.FacebookContentProvider
+content://com.test.firebaseinitprovider/
+content://com.facebook.wakizashi.provider.AttributionIdProvider/
+content://com.facebook.app.FacebookContentProvider821671111584763
+content://com.test.coreInitializer
+content://com.facebook.app.FacebookContentProvider821671111584763/
+content://com.test.fileprovider
+content://com.facebook.katana.provider.AttributionIdProvider
+content://com.facebook.wakizashi.provider.AttributionIdProvider
+
+dz> run scanner.provider.finduris -a com.test
+Scanning com.test...
+Unable to Query  content://com.google.android.gsf.gservices/prefix/
+Unable to Query  content:// Uri/
+Unable to Query  content://com.google.android.gms.phenotype
+Unable to Query  content:// Uri
+Unable to Query  content://com.google.android.gms.chimera
+Unable to Query  content://com.google.android.gsf.gservices/
+Unable to Query  content://com.test.lifecycle-process
+Unable to Query  content://com.test.coreInitializer/
+Unable to Query  content://com.test.fileprovider/
+Unable to Query  content://com.test.crashlyticsinitprovider
+Unable to Query  content://com.google.android.gsf.gservices
+Unable to Query  content://com.test.crashlyticsinitprovider/
+Unable to Query  content://com.facebook.app.FacebookContentProvider/
+Unable to Query  content://com.google.android.gms.chimera/
+Unable to Query  content://com.google.android.gms.phenotype/
+Unable to Query  content://com.facebook.katana.provider.AttributionIdProvider/
+Unable to Query  content://com.test.FacebookInitProvider/
+Unable to Query  content://com.google.android.gsf.gservices/prefix
+Unable to Query  content://com.test.lifecycle-process/
+Unable to Query  content://com.test.firebaseinitprovider
+Unable to Query  content://com.test.FacebookInitProvider
+Unable to Query  content://com.facebook.app.FacebookContentProvider
+Unable to Query  content://com.test.firebaseinitprovider/
+Unable to Query  content://com.facebook.wakizashi.provider.AttributionIdProvider/
+Unable to Query  content://com.facebook.app.FacebookContentProvider821671111584763
+Unable to Query  content://com.test.coreInitializer
+Unable to Query  content://com.facebook.app.FacebookContentProvider821671111584763/
+Unable to Query  content://com.test.fileprovider
+Unable to Query  content://com.facebook.katana.provider.AttributionIdProvider
+Unable to Query  content://com.facebook.wakizashi.provider.AttributionIdProvider
+
+No accessible content URIs found.					<== 접근 가능한 URI를 찾으면 여기 나옴
+
+- 아래와 같이 입력하면 모든 URI에 대해 SQL Query를 날려서 공격성 확인해본다.
+dz> run scanner.provider.sqltables -a com.test
+Scanning com.test...
+
+dz> run scanner.provider.injection -a com.test
+Scanning com.test...
+Not Vulnerable:
+  content://com.google.android.gsf.gservices/prefix/
+  content:// Uri/
+  content://com.google.android.gms.phenotype
+  content://com.facebook.app.FacebookContentProvider/
+  content://com.google.android.gms.chimera
+  content://com.google.android.gsf.gservices/
+  content://com.test.lifecycle-process
+  content://com.test.coreInitializer/
+  content://com.test.fileprovider/
+  content://com.test.crashlyticsinitprovider
+  content://com.google.android.gsf.gservices
+  content://com.test.crashlyticsinitprovider/
+  content:// Uri
+  content://com.google.android.gms.chimera/
+  content://com.google.android.gms.phenotype/
+  content://com.facebook.katana.provider.AttributionIdProvider/
+  content://com.test.FacebookInitProvider/
+  content://com.google.android.gsf.gservices/prefix
+  content://com.test.lifecycle-process/
+  content://com.test.firebaseinitprovider
+  content://com.test.FacebookInitProvider
+  content://com.facebook.app.FacebookContentProvider
+  content://com.test.firebaseinitprovider/
+  content://com.facebook.wakizashi.provider.AttributionIdProvider/
+  content://com.facebook.app.FacebookContentProvider821671111584763
+  content://com.test.coreInitializer
+  content://com.facebook.app.FacebookContentProvider821671111584763/
+  content://com.test.fileprovider
+  content://com.facebook.katana.provider.AttributionIdProvider
+  content://com.facebook.wakizashi.provider.AttributionIdProvider
+
+Injection in Projection:
+  No vulnerabilities found.
+
+Injection in Selection:
+  No vulnerabilities found.
+
+19. 서비스 분석
+dz> run app.service.info -u -f test
+Package: com.test
+  Exported Services:
+  Hidden Services:
+    com.test.service.InferenceAndroidService
+      Permission: null
+    com.test.service.testFcmService
+      Permission: null
+
+20. 디버깅 가능 앱 확인
+dz> run app.package.debuggable
+Package: com.android.insecurebankv2
+  UID: 10034
+  Permissions:
+   - android.permission.INTERNET
+   - android.permission.WRITE_EXTERNAL_STORAGE
+   - android.permission.SEND_SMS
+   - android.permission.USE_CREDENTIALS
+   - android.permission.GET_ACCOUNTS
+   - android.permission.READ_PROFILE
+   - android.permission.READ_CONTACTS
+   - android.permission.READ_PHONE_STATE
+   - android.permission.READ_CALL_LOG
+   - android.permission.ACCESS_NETWORK_STATE
+   - android.permission.ACCESS_COARSE_LOCATION
+   - android.permission.READ_EXTERNAL_STORAGE
+
+Package: com.mwr.dz
+  UID: 10035
+  Permissions:
+   - android.permission.INTERNET
+
+21. Manifest.xml 파일에서 allowBackup 속성이 사용중일 경우 아래의 명령으로 백업 데이터를 점검 할 수 있음
+C:\lhj>"C:\Program Files (x86)\Nox\bin\adb.exe" backup -f test.ad com.test
+Now unlock your device and confirm the backup operation...
+-> 이때 단말기에서 비밀번호를 입력 해줘야 함
+
+C:\lhj>java -jar abe-all.jar unpack test.ad test.tar
+This backup is encrypted, please provide the password
+Password:
+Calculated MK checksum (use UTF-8: true): AA328412E24252AEE6B4BC987EA7F830F72A874DE97942F931BC67BB64444CAF
+0% 1% 2% 3% 4% 5% 6% 7% 8% 9% 10% 11% 12% 13% 14% 15% 16% 17% 18% 19% 20% 21% 22% 23% 24% 25% 26% 27% 28% 29% 30% 31% 32% 33% 34% 35% 36% 37% 38% 39% 40% 41% 42% 43% 44% 45% 46% 47% 48% 49% 50% 51% 52% 53% 54% 55% 56% 57% 58% 59% 60% 61% 62% 63% 64% 65% 66% 67% 68% 69% 70% 71% 72% 73% 74% 75% 76% 77% 78% 79% 80% 81% 82% 83% 84% 85% 86% 87% 88% 89% 90% 91% 92% 93% 94% 95% 96% 97% 98% 99% 100%
+781312 bytes written to test.tar.
+
+- crashlytics-userlog-5EFD4A4E0384-0001000600 파일에서 사용자 로깅이 확인 가능하였음
+?3832 D/CrashlyticsCore $A$:{"name":"_e","parameters":{"_o":"auto","_et":1387,"_fr":1,"_sc":"MyFragment","_si":5121485456707089497,"_sn":"MyFragment"}}
+(52289 D/CrashlyticsCore $A$:{"name":"M02_Edit_Save_SS","parameters":{"persontitle":"鍮좊컮","_o":"app","_sc":"ProfileEditFragment","_si":5121485456707089498,"_sn":"ProfileEditFragment","breed":"243432","Neutralization":1,"birthday":"20200702","profilepicture":1,"registerednumber":1,"Gender":0}}
+
+22. 어느정도 앱을 실행하고 동작을 시킨 후 /data/data/com.test 폴더를 tar로 압축한 다음 추출하여 내용에 민감정보가 평문으로 저장되는지 확인 필요
+
+23. frida를 활용해보자
+root@shamu:/root # ./frida-server-12.10.4-android-x86 &
+[1] 3843
+root@shamu:/root # WARNING: linker: ./frida-server-12.10.4-android-x86: unused DT entry: type 0x6ffffef5 arg 0x1c60
+
+root@shamu:/ # ps
+root      3843  3834  93884  48532 ffffffff b5c229c0 S ./frida-server-12.10.4-android-x86
+root      3845  3843  9880   1004  00000000 b7714253 S logcat
+
+1) frida-ps -U로 frida-server 프로세스를 확인
+c:\>frida-ps -U
+ PID  Name
+----  ------------------------------------
+1471  adbd
+2018  android.process.acore
+2547  android.process.media
+3208  com.android.gallery3d
+2432  com.android.keychain
+1938  com.android.phone
+2719  com.android.settings
+1868  com.android.systemui
+2393  com.android.vending
+2564  com.android.vending:download_service
+3519  com.test
+2583  com.facebook.lite:fbns
+2161  com.google.android.gms
+2093  com.google.android.gms.persistent
+
+2) 'frida-trace -i "검색하고 싶은 API명" -U [앱 패키지 이름]' 를 통해 API함수 호출을 추적
+하기 명령을 통해 모든 API 호출을 추적함
+c:\>frida-trace -U -f com.test -i *
+Instrumenting functions...
+_ZN7android8String16C1ERKNS_7String8E: Auto-generated handler at "c:\\__handlers__\\libutils.so\\_ZN7android8String16C1ERKNS_7String8E.js"
+_ZN7android8String16C2ERKS0_jj: Auto-generated handler at "c:\\__handlers__\\libutils.so\\_ZN7android8String16C2ERKS0_jj.js"
+utf8_to_utf16_n: Auto-generated handler at "c:\\__handlers__\\libutils.so\\utf8_to_utf16_n.js"
+_ZN7android18WeakMessageHandlerD0Ev: Auto-generated handler at "c:\\__handlers__\\libutils.so\\_ZN7android18WeakMessageHandlerD0Ev.js"
+
+c:\lhj>frida-ps -U | findstr "test"
+3745  com.test
+
+1) open 함수 호출 인수 추적 
+(c:\lhj\__handlers__\libandroid_runtime.so\ 경로에 들어가게 되면 open.js 파일이 존재하는데 해당 파일을 수정하여 사용가능함)
+c:\lhj>frida-trace -U com.test -i "open"
+Instrumenting functions...
+open: Loaded handler at "c:\\lhj\\__handlers__\\libandroid_runtime.so\\open.js"
+Started tracing 1 function. Press Ctrl+C to stop.
+           /* TID 0xda6 */
+ 79219 ms  open()
+           /* TID 0x1105 */
+ 79220 ms  open()
+           /* TID 0xda6 */
+ 79221 ms  open()
+           /* TID 0x1105 */
+ 79221 ms  open()
+ 79221 ms  open()
+ 79221 ms  open()
+
+※ 왜 trace가 안되지 하고 삽질하고 있지 말고... 앱에서 실행을 시켜줘야 구동한다.
+
+2) open에 기존에 들어가 있던 코드를 변경 하여 메모리 값을 확인 가능함
+  onEnter: function (log, args, state) {
+    log('open(' + 'pathname=' + args[0] + ', flags=' + args[1] + ')');
+  },
+
+c:\lhj>frida-trace -U com.test -i "open"
+Instrumenting functions...
+open: Loaded handler at "c:\\lhj\\__handlers__\\libandroid_runtime.so\\open.js"
+Started tracing 1 function. Press Ctrl+C to stop.
+           /* TID 0xda6 */
+ 93770 ms  open(pathname=0xb73bd909, flags=0x2)
+ 93787 ms  open(pathname=0xb7371e53, flags=0x0)
+ 93787 ms  open(pathname=0xb7371e53, flags=0x0)
+           /* TID 0x1130 */
+ 93787 ms  open(pathname=0xb73bd909, flags=0x2)
+           /* TID 0x1132 */
+ 93789 ms  open(pathname=0xb73bd909, flags=0x2)
+ 93793 ms  open(pathname=0x9c087cf8, flags=0x88042)
+ 93794 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93794 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93794 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93794 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93794 ms  open(pathname=0xb73bd909, flags=0x2)
+ 93795 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93795 ms  open(pathname=0x9c087d42, flags=0x88000)
+ 93795 ms  open(pathname=0xb73bd909, flags=0x2)
+ 93795 ms  open(pathname=0x9c087d42, flags=0x88042)
+ 93795 ms  open(pathname=0x9fbf3e5b, flags=0x80000)
+
+3) 조금 더 구체적으로 보기 위해서 메모리 객체를 활용하고 UTF-8 문자열로 출력하게 변경
+  onEnter: function (log, args, state) {
+    log('open(' + 'pathname=' + Memory.readUtf8String(args[0]) + ', flags=' + args[1] + ')');
+  }
+
+c:\lhj>frida-trace -U com.test -i "open"
+Instrumenting functions...
+open: Loaded handler at "c:\\lhj\\__handlers__\\libandroid_runtime.so\\open.js"
+Started tracing 1 function. Press Ctrl+C to stop.
+           /* TID 0xda6 */
+  2137 ms  open(pathname=/dev/alarm, flags=0x0)
+           /* TID 0x1146 */
+  2141 ms  open(pathname=/dev/ashmem, flags=0x2)
+           /* TID 0x1148 */
+  2142 ms  open(pathname=/dev/ashmem, flags=0x2)
+  2144 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db, flags=0x88042)
+  2144 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2144 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2144 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2145 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2145 ms  open(pathname=/dev/ashmem, flags=0x2)
+  2145 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2145 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88000)
+  2145 ms  open(pathname=/dev/ashmem, flags=0x2)
+  2145 ms  open(pathname=/data/data/com.test/databases/google_app_measurement_local.db-journal, flags=0x88042)
+  2146 ms  open(pathname=/data/data/com.test/databases, flags=0x80000)
+           /* TID 0x1149 */
+  2149 ms  open(pathname=/dev/ashmem, flags=0x2)
+  2149 ms  open(pathname=/data/data/com.test/files/generatefid.lock, flags=0x42)
+  2149 ms  open(pathname=/dev/ashmem, flags=0x2)
+  2149 ms  open(pathname=/data/data/com.test/files/PersistedInstallation.W0RFRkFVTFRd+MTo4NDE1NjU5MTM2NjI6YW5kcm9pZDpiYzVmNTQyMjMxMmNlMmE1.json, flags=0x0)
+
+24. 프리다의 -f 옵션으로 프로세스 자체를 생성할 수 있음
+c:\lhj>frida -U -f com.test
+     ____
+    / _  |   Frida 12.8.1 - A world-class dynamic instrumentation toolkit
+   | (_| |
+    > _  |   Commands:
+   /_/ |_|       help      -> Displays the help system
+   . . . .       object?   -> Display information about 'object'
+   . . . .       exit/quit -> Exit
+   . . . .
+   . . . .   More info at https://www.frida.re/docs/home/
+Spawned `com.test`. Use %resume to let the main thread start executing!
+[Samsung SM-G955N::com.test]-> Java.androidVersion
+"5.1.1"
+
+25. 프리다를 사용해서 함수를 후킹해서 내가 원하는대로 자바스크립트로 변화해서 사용할 수 있음
+import frida, sys
+
+def on_message(message, data):
+   if message['type'] == 'send':
+      print("[*] {0}".format(message['payload']))
+   else:
+      print(message)
+
+PROCESS_NAME = "owasp.mstg.uncrackable1"
+
+hook_code = """
+console.log("[*] Start hook code ");
+   Java.perform(function(){
+      console.log("[*] Hooking start");
+	  var hook_class = NULL;
+      hook_class = Java.use("java.lang.System");
+      hook_class.exit.implementation = function(){ console.log("Hook success"); };
+
+      console.log("[*] Hooking a class");
+	  var a_class, ret_value, plaintext = NULL;
+      a_class = Java.use("sg.vantagepoint.a.a");
+      a_class.a.implementation = function(a, b) {
+         console.log("[*] a class Hooking");
+         ret_value = this.a(a, b);
+         plaintext = '';
+         for(var i=0; i<ret_value.length; i++){
+            plaintext += String.fromCharCode(ret_value[i]);
+         }
+         console.log("Plaintext : " + plaintext);
+         return ret_value;
+      }
+   });
+"""
+
+process = frida.get_usb_device(1).attach(PROCESS_NAME)
+script = process.create_script(hook_code)
+script.on('message', on_message)
+print("[*] Running Hook")
+script.load()
+sys.stdin.read()
