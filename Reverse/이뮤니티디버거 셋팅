@@ -1,0 +1,15 @@
+##### How to install Immunity Debugger on Windows 10
+
+- 개요 : 윈10 에서 이뮤니티 디버거를 설치하였는데 자꾸 꺼지는 현상이 발생하였고 방법을 찾다보니 아래의 방법을 통해서 꺼지지 않게 셋팅할 수 있었음
+
+# 설치 방법
+1. Immunity Debugger 설치 
+2. Python 2.7 설치
+
+# 두가지 문제가 발생 할 수 있음
+1. C:\Program Files (x86)\Immunity Inc\Immunity Debugger 경로로 이뮤니티 디버거가 설정되었을 경우 C:\아래로 설치경로를 잡아주면 됨
+2. 파이선 3.x를 사용중일 경우 파이썬 2.7로 변경
+3. cmd 창에서 아래와 같이 환경변수 설정
+setx path "%path%;C:/Python27"
+setx PYTHONHOME "C:\python27"
+setx PYTHONPATH "C:\Python27\DLLs;C:\Python27\Lib;C:\Python27\Lib\site-packages"
