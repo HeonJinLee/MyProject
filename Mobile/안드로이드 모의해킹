@@ -564,3 +564,62 @@ script.on('message', on_message)
 print("[*] Running Hook")
 script.load()
 sys.stdin.read()
+
+
+26. 프로그래머가 A 어플리케이션의 코드를 보호하고 싶을때, 
+겉으로 들어난 B 어플리케이션을 실행하면 짧은 순간에 A의 실행파일에 해당하는 .dex 파일 혹은 apk 파일 또는 .jar 파일을 생성하고 실행할 수 있게 보호조치를 하는 경우 우회방법
+- 프로세스 메모리 맵을 통해 프로세스의 흐름으로 분석이 가능함
+-> 안드로이드 루트쉘에서 'cat /proc/<PID>/maps' 명령을 사용하면 알 수 있음
+
+root@shamu:/ # cat /proc/2868/maps
+12c00000-12e01000 rw-p 00000000 00:01 4246       /dev/ashmem/dalvik-main space (deleted)
+12e01000-14f7f000 rw-p 00201000 00:01 4246       /dev/ashmem/dalvik-main space (deleted)
+14f7f000-1ec00000 ---p 0237f000 00:01 4246       /dev/ashmem/dalvik-main space (deleted)
+3e401000-3e41f000 rw-p 00000000 00:00 0
+3e41f000-3e540000 ---p 00000000 00:00 0
+70e14000-7178c000 rw-p 00000000 08:13 2326533    /data/dalvik-cache/x86/system@framework@boot.art
+7178c000-7322b000 r--p 00000000 08:13 2326532    /data/dalvik-cache/x86/system@framework@boot.oat
+7322b000-74c5e000 r-xp 01a9f000 08:13 2326532    /data/dalvik-cache/x86/system@framework@boot.oat
+74c5e000-74c5f000 rw-p 034d2000 08:13 2326532    /data/dalvik-cache/x86/system@framework@boot.oat
+74c5f000-75539000 rw-p 00000000 00:01 4245       /dev/ashmem/dalvik-zygote space (deleted)
+75539000-7553a000 rw-p 00000000 00:01 4438       /dev/ashmem/dalvik-non moving space (deleted)
+7553a000-75bec000 rw-p 00001000 00:01 4438       /dev/ashmem/dalvik-non moving space (deleted)
+75bec000-77c60000 ---p 006b3000 00:01 4438       /dev/ashmem/dalvik-non moving space (deleted)
+77c60000-78c5f000 rw-p 02727000 00:01 4438       /dev/ashmem/dalvik-non moving space (deleted)
+8e49f000-8e59b000 rw-p 00000000 00:00 0          [stack:3248]
+8e59b000-8e5f0000 r--s 0063e000 08:06 79         /system/app/webview/webview.apk
+8e5f0000-8ec00000 r--s 0001a000 08:06 79         /system/app/webview/webview.apk
+90736000-90746000 rw-s 00000000 00:01 10246      /dev/ashmem/shared_memory/E36147C01750AB9E506279EF1DFD8D60 (deleted)
+90746000-90766000 rw-s 00000000 00:01 10238      /dev/ashmem/shared_memory/11E8C8AA9657D0C033C655D340E6C3F7 (deleted)
+90766000-9076d000 rw-p 00000000 00:01 10039      /dev/ashmem/dalvik-large object space allocation (deleted)
+90777000-9077e000 rw-p 00000000 00:01 10036      /dev/ashmem/dalvik-large object space allocation (deleted)
+9077e000-90784000 r--s 00000000 08:13 3884823    /data/data/com.test.testapp/app_webview/Cookies
+90789000-90790000 rw-p 00000000 00:01 10033      /dev/ashmem/dalvik-large object space allocation (deleted)
+90790000-90794000 rw-p 00000000 00:01 10022      /dev/ashmem/dalvik-large object space allocation (deleted)
+907a2000-907a4000 rw-p 00000000 00:01 10035      /dev/ashmem/dalvik-indirect ref table (deleted)
+907a6000-907a8000 rw-p 00000000 00:01 10016      /dev/ashmem/dalvik-indirect ref table (deleted)
+907ae000-907b1000 r-xp 00000000 08:06 1024       /system/lib/libwebviewchromium_plat_support.so
+907b1000-907b2000 r--p 00002000 08:06 1024       /system/lib/libwebviewchromium_plat_support.so
+907b2000-907b3000 rw-p 00003000 08:06 1024       /system/lib/libwebviewchromium_plat_support.so
+907b3000-90816000 r--s 008fe000 08:06 79         /system/app/webview/webview.apk
+90816000-90822000 r--s 00960000 08:06 79         /system/app/webview/webview.apk
+90824000-90826000 rw-p 00000000 00:01 10012      /dev/ashmem/dalvik-indirect ref table (deleted)
+90828000-9082a000 rw-p 00000000 00:01 10007      /dev/ashmem/dalvik-indirect ref table (deleted)
+=> 다음과 같이 삭제되고 바뀌는 파일들을 확인 가능하다 (root@shamu:/ # cat /proc/4880/maps | grep data)
+
+* 임시 생성된 파일을 복사하기 위한 스크립트
+#!/system/bin/sh
+
+cnt=0
+
+while [ 1 ]; do
+   if [ -f "/data/data/com.test.testapp/app_webview/Cookies" ]; then
+      cp -r /data/data/com.test.testapp/app_webview/Cookies /root/app$cnt
+   fi
+
+   cnt=$(($cnt+1))
+   sleep 0.1
+done
+
+=> 다음과 같이 파일을 추출을 하면 리눅스 형식으로 되어 있어서 ELF 파일 형식이 hex값에 묻어 있다.
+따라서, hex에디터로 dex.035(0x6465780A303335)를 검색하여 0x00 영역부터 dex.035가 나오기 전까지 전부 삭제를 하면 정상적으로 분석이 가능함
