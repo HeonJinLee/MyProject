@@ -1,0 +1,432 @@
+# ELK 설치는 엘라스틱서치 -> 로그스태시 -> 키바나 순으로 설치하는 것이 좋음
+- 데이터 흐름은 Beats -> Logstash -> Elasticsearch -> Kibana
+
+1) 로그 수집 대상 서버에는 Beats가 설치되어 수집할 데이터 발생 시 Beats 트리거에 따라 Logstash로 데이터를 전송
+2) Logstash로 전달 된 데이터는 사용자 필터에 따라 가공되어 Elasticsearch로 전달
+3) Elasticsearch는 전달 받은 데이터를 Elasticsearch 서버에 저장
+4) Kibana를 통해 Elasticsearch에 저장된 데이터를 토대로 시각화
+
+
+1. 엘라스틱서치 레포지서버 등록
+vi /etc/yum.repos.d/elasticsearch.repo
+[elasticsearch]
+name=Elasticsearch repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/7.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+
+2. 엘라스틱서치 설치
+dnf install java-11-openjdk-devel
+dnf update
+reboot
+dnf install elasticsearch
+
+3. 엘라스틱서치 설정
+mkdir /data/elastic/data
+mkdir /data/elastic/log
+chown -R elasticsearch:elasticsearch /data/elastic
+
+vi /etc/elasticsearch/elasticsearch.yml
+cluster.name: heonElastic
+node.name: heonNode1
+path.data: /data/elastic/data
+path.logs: /data/elastic/log
+network.host: 192.168.85.5
+discovery.seed_hosts: ["heonNode1"]
+cluster.initial_master_nodes: ["heonNode1"]
+
+4. 시스템 시작 중에 시작하도록 Elasticsearch를 구성
+systemctl daemon-reload
+systemctl enable elasticsearch
+systemctl start elasticsearch
+
+5. 엘라스틱서치 구동 확인
+[root@localhost lhj]# curl -XGET http://192.168.85.5:9200
+{
+  "name" : "heonNode1",
+  "cluster_name" : "heonElastic",
+  "cluster_uuid" : "lCLtUWSGQueQgyk5U1EQPw",
+  "version" : {
+    "number" : "7.17.1",
+    "build_flavor" : "default",
+    "build_type" : "rpm",
+    "build_hash" : "e5acb99f822233d62d6444ce45a4543dc1c8059a",
+    "build_date" : "2022-02-23T22:20:54.153567231Z",
+    "build_snapshot" : false,
+    "lucene_version" : "8.11.1",
+    "minimum_wire_compatibility_version" : "6.8.0",
+    "minimum_index_compatibility_version" : "6.0.0-beta1"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+[root@localhost lhj]# curl -XGET http://192.168.85.5:9200/_cluster/health?pretty
+{
+  "cluster_name" : "heonElastic",
+  "status" : "green",
+  "timed_out" : false,
+  "number_of_nodes" : 1,
+  "number_of_data_nodes" : 1,
+  "active_primary_shards" : 3,
+  "active_shards" : 3,
+  "relocating_shards" : 0,
+  "initializing_shards" : 0,
+  "unassigned_shards" : 0,
+  "delayed_unassigned_shards" : 0,
+  "number_of_pending_tasks" : 0,
+  "number_of_in_flight_fetch" : 0,
+  "task_max_waiting_in_queue_millis" : 0,
+  "active_shards_percent_as_number" : 100.0
+}
+
+6. 엘라스틱서치 사용 기본 가이드
+- POST를 통해 추가하고 URI에 매개변수가 있으며, test는 데이터의 인덱스, heon은 유형, 1 은 항목의 ID
+[root@localhost lhj]# curl -XPOST 'http://192.168.85.5:9200/test/heon/1?pretty' -H 'Content-Type: application/json' -d '{"Message": "Hello heon"}'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "1",
+  "_version" : 2,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 1,
+  "_primary_term" : 1
+}
+[root@localhost lhj]# curl -XPOST 'http://192.168.85.5:9200/test/heon/2?pretty' -H 'Content-Type: application/json' -d '{"Message": "Hello heon2"}'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "2",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 2,
+  "_primary_term" : 1
+}
+
+- GET 메소드를 통해 데이터를 조회
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/heon/1?pretty'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "1",
+  "_version" : 2,
+  "_seq_no" : 1,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "Message" : "Hello heon"
+  }
+}
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/heon/2?pretty'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "2",
+  "_version" : 1,
+  "_seq_no" : 2,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "Message" : "Hello heon2"
+  }
+}
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/heon/3?pretty'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "3",
+  "found" : false
+}
+
+- PUT메소드를 통해 데이터 수정
+[root@localhost lhj]# curl -XPUT 'http://192.168.85.5:9200/test/heon/2?pretty' -H 'Content-Type: application/json' -d '{"message": "Change test heon"}'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "2",
+  "_version" : 2,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 3,
+  "_primary_term" : 1
+}
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/heon/2?pretty'
+{
+  "_index" : "test",
+  "_type" : "heon",
+  "_id" : "2",
+  "_version" : 2,
+  "_seq_no" : 3,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "message" : "Change test heon"
+  }
+}
+
+- 엘라스틱서치의 모든 인덱스 조회하기
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/_cat/indices?v'
+health status index            uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+green  open   .geoip_databases WmctLzxmQeuM-n20fbZbGg   1   0         44            0     41.4mb         41.4mb
+yellow open   test             _E3tmmKfTnWrxp6CEwZfZw   1   1          2            0      4.5kb          4.5kb
+yellow open   tutorial         PporJzLjRCabu0hq9C3tqA   1   1          8            0     11.7kb         11.7kb
+
+- 타입(도큐먼트) 조회하기
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/_search?pretty'
+{
+  "took" : 12,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "test",
+        "_type" : "heon",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "message" : "Change test heon"
+        }
+      },
+      {
+        "_index" : "test",
+        "_type" : "heon",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "Message" : "Hello heon"
+        }
+      }
+    ]
+  }
+}
+
+
+- 모든 인덱스값 조회
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/_all/_search?pretty'
+{
+  "took" : 9,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 2,
+    "successful" : 2,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 10,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "test",
+        "_type" : "heon",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "message" : "Change test heon"
+        }
+      },
+      {
+        "_index" : "test",
+        "_type" : "heon",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "Message" : "Hello heon"
+        }
+      },
+      {
+        "_index" : "tutorial",
+        "_type" : "1",
+        "_id" : "fMCsyn8B0Y-n7D1LQ6nj",
+        "_score" : 1.0,
+        "_source" : {
+          "Message" : "Hello heonjin!"
+        }
+      },
+      {
+        "_index" : "tutorial",
+        "_type" : "1",
+        "_id" : "fsCtyn8B0Y-n7D1Lqqmf",
+        "_score" : 1.0,
+        "_source" : {
+          "Message" : "Hello heonjin!"
+        }
+      }
+    ]
+  }
+}
+
+- _source 프로퍼티에 실제 데이터가 들어가게 되는데 실제데이터만 보여줘서 응답 결과를 줄일 수 있음
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/_all/_search?pretty&filter_path=_source'
+{ }
+
+[root@localhost lhj]# curl -XGET 'http://192.168.85.5:9200/test/heon/1?pretty&filter_path=_source'
+{
+  "_source" : {
+    "Message" : "Hello heon"
+  }
+}
+
+
+7. logstash 설치
+dnf install logstash
+
+mkdir /data
+mkdir /data/logstash
+chown -R logstash:logstash /data/logstash
+
+vi /etc/logstash/logstash.yml
+
+node.name: heonTest
+path.data: /data/logstash/data
+
+8. 로그스태시 필터 생성
+vi /etc/logstash/conf.d/test-filter.conf
+
+* 필터 파일 기본 구조
+input { 
+   // 로그데이터를 수신할 프로토콜 및 포트, 코덱 등을 정의
+}
+
+filter {
+   // (옵션) 수신한 로그에 대한 파싱, 인덱싱 및 변환 작업
+   // grok 필터 규칙 : %{정규 패턴명:사용자정의 필드}, (?<필드명>정규 표현식)
+}
+
+output {
+   // 변환한 데이터를 elasticsearch 등 외부 저장소로 출력
+}
+
+input {
+   beats {
+      port => 5044
+   }
+}
+
+filter {
+   if [type] == "syslog" {
+      grok {
+         match => { "message" => "%{SYSLOGLINE}" }
+      }
+      date {
+         match => [ "timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+      }
+   }
+}
+
+output {
+   elasticsearch {
+      hosts => ["192.168.85.5:9200"]
+      index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+   }
+}
+
+9. 로그스태시 동작 확인
+systemctl start logstash
+systemctl enable logstash
+cat /var/log/logstash/logstash-plain.log
+
+
+10. 키바나 설치
+dnf install kibana
+
+vi /etc/kibana/kibana.yml
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://192.168.85.5:9200"]
+systemctl stop firewalld
+
+* 트러블슈팅 1
+Kibana server is not ready yet 에러가 발생
+- 방화벽을 키바나랑 엘라스틱서치 모두 내린 후 정상화 확인 (systemctl stop firewalld)
+
+11. 파일비트 설치
+dnf install filebeat
+
+- Logstash 서버로 로그를 보내기 위해 filebeat 셋팅
+vi /etc/filebeat/filebeat.yml
+
+# ------------------------------ Logstash Output -------------------------------
+output.logstash:
+  # The Logstash hosts
+  hosts: ["192.168.85.6:5044"]
+
+  # Optional SSL. By default is off.
+  # List of root certificates for HTTPS server verifications
+  #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
+
+- Logstash로 보낼 로그를 지정 (여기서는 /var/log/messages 를 설정)
+# ============================== Filebeat inputs ===============================
+
+filebeat.inputs:
+
+# Each - is an input. Most options can be set at the input level, so
+# you can use different inputs for various configurations.
+# Below are the input specific configurations.
+
+# filestream is an input for collecting log messages from files.
+#- type: filestream
+- type: log
+
+  # Change to true to enable this input configuration.
+  enabled: true
+
+  # Paths that should be crawled and fetched. Glob based paths.
+  paths:
+#    - /var/log/*.log
+    - /var/log/messages
+    #- c:\programdata\elasticsearch\logs\*
+
+
+- 우리는 파일비트에서 엘라스틱서치로 직접 날릴 것이 아니기 때문에 엘라스틱서치 설정 주석처리 필요함
+vi /etc/filebeat/filebeat.yml
+
+# ---------------------------- Elasticsearch Output ----------------------------
+#output.elasticsearch:
+  # Array of hosts to connect to.
+  #hosts: ["localhost:9200"]
+
+  # Protocol - either `http` (default) or `https`.
+  #protocol: "https"
+
+  # Authentication credentials - either API key or username/password.
+  #api_key: "id:api_key"
+  #username: "elastic"
+  #password: "changeme"
+
+
+12. 정상 통신 확인
+* 트러블슈팅 2
+ 1) 엘라스틱서치의 network.host 를 192.168.85.5만 등록을 해놓으니 다른곳에서 접근이 되지 않아 오픈
+vi /etc/elasticsearch/elasticsearch.yml
+network.host: [192.168.85.5, 192.168.85.6, 192.168.85.7]
